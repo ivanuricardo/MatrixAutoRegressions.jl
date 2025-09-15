@@ -46,13 +46,17 @@ Alternating Least Squares estimation for the MAR(1) model:
 function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     A = copy(A_init)
     B = copy(B_init)
-    N1 = size(A, 1)
-    N2 = size(B, 1)
-    N, obs = size(resp)
+    n1, n2 = size(A, 1), size(B, 1)
+    n, obs = size(resp)
 
     for i in 1:maxiter
-        Ystar = kron(I(N2), A) * pred
-        Ystar = kron(B, I(N)) * pred
+        X_given_A = kron(I(n2), A) * pred
+        B = resp * X_given_A' * inv(X_given_A * X_given_A')
+
+
+
+
+        X_given_B = kron(B, I(n1)) * pred
         if i == maxiter
             @warn "Reached maximum number of iterations"
             return A, B

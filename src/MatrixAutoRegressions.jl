@@ -6,10 +6,12 @@ using Statistics
 using Distributions
 
 include("./types.jl")
-include("./utils.jl")
 include("./mar.jl")
 export projection
 export als
 
+include("./utils.jl")
+export vectorize
+export matricize
 
 end

@@ -1,7 +1,6 @@
 using MatrixAutoRegressions
 using Test, LinearAlgebra
 
-
 println("Starting tests")
 ti = time()
 

@@ -1,24 +1,4 @@
 
-"""
-Simulate a MAR model
-"""
-function simulate_mar(
-    obs::Int,
-    A::AbstractVecOrMat, 
-    B::AbstractVecOrMat,
-    Sigma1::AbstractMatrix,
-    Sigma2::AbstractMatrix,
-    )
-    n1, n2 = size(A, 1), size(B, 1)
-    Y = Array{Float64, 3}(undef, n1, n2, obs)
-    Y[:, :, 1] = zeros(n1, n2)
-    matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
-    matrix_errs = rand(matrix_normal, obs)
-    for t in 2:obs
-        Y[:, :, t] = A * Y[:, :, t-1] * B' + matrix_errs[1]
-    end
-    return Y
-end
 
 """
 Generate MAR coefficients with the normalization that A has a frobenius norm 
@@ -55,4 +35,48 @@ function generate_mar_coefs(n1, n2; maxiters=100)
 
 end
 
+"""
+Simulate a MAR model
+"""
+function simulate_mar(
+    obs::Int;
+    n1::Int = 3,
+    n2::Int = 4,
+    A::Union{Nothing, AbstractVecOrMat} = nothing,
+    B::Union{Nothing, AbstractVecOrMat} = nothing,
+    Sigma1::Union{Nothing, AbstractMatrix} = nothing,
+    Sigma2::Union{Nothing, AbstractMatrix} = nothing,
+    burnin::Int = 50,
+    snr::Real = 0.7,
+    )
 
+    if A === nothing || B === nothing
+        coefs = generate_mar_coefs(n1, n2)
+        A = coefs.A
+        B = coefs.B
+    end
+
+    if Sigma1 === nothing || Sigma2 === nothing
+        # For snr
+        maxeigA = maximum(abs.(eigen(A).values))
+        maxeigB = maximum(abs.(eigen(B).values))
+        eigval_coef = maxeigA * maxeigB
+        eigval_err = eigval_coef / snr
+        Sigma = diagm(repeat([eigval_err], n1 * n2))
+        Sigma1, Sigma2, Sigma = projection(Sigma, n1, n2)
+        Sigma1 = abs.(Sigma1)
+        Sigma2 = abs.(Sigma2)
+    end
+
+    n1, n2 = size(A, 1), size(B, 1)
+    total_obs = obs + burnin
+    Y = Array{Float64, 3}(undef, n1, n2, total_obs)
+    Y[:, :, 1] = zeros(n1, n2)
+    matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
+    matrix_errs = rand(matrix_normal, total_obs)
+    for t in 2:total_obs
+        Y[:, :, t] = A * Y[:, :, t-1] * B' + matrix_errs[t]
+    end
+    Y = Y[:, :, burnin+1:end]
+    return (; Y, A, B, Sigma1, Sigma2)
+end

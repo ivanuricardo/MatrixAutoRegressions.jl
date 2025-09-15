@@ -2,7 +2,7 @@
 @testset "vectorize and matricize data" begin
     n1 = 3
     n2 = 4
-    obs = 100
+    obs = 10
     data = randn(n1, n2, obs)
     first_obs = data[:, :, 1]
     second_obs = data[:, :, 2]

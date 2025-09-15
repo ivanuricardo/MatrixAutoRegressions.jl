@@ -19,5 +19,6 @@ export isstable
 
 include("./simulation.jl")
 export generate_mar_coefs
+export simulate_mar
 
 end

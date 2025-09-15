@@ -4,6 +4,7 @@ using LinearAlgebra
 using StatsBase
 using Statistics
 using Distributions
+using Random
 
 include("./types.jl")
 include("./mar.jl")

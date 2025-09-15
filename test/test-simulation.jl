@@ -1,12 +1,10 @@
-@test "simulate mar" begin
+@testset "simulate mar" begin
     obs = 100
     A = randn(4,4)
 end
 
 
 @testset "generate_mar_coefs" begin
-    using Random
-    Random.seed!(20250915)
     n1, n2 = 3, 4
     result = generate_mar_coefs(n1, n2; maxiters=100)
 

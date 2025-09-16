@@ -48,7 +48,7 @@ function simulate_mar(
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 50,
     snr::Real = 0.7,
-    maxiter::Int = 100
+    maxiter::Int = 100,
     )
 
     if A === nothing || B === nothing

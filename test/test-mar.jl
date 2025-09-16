@@ -46,8 +46,8 @@ end
 end
 
 @testset "als algorithm" begin
-    obs = 10000
-    dgp = simulate_mar(obs; snr = 100, maxiter = 1000)
+    obs = 100
+    dgp = simulate_mar(obs)
     matdata = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
@@ -57,11 +57,9 @@ end
     tol = 1e-06
     obj_true = ls_objective(resp, pred, A_init, B_init)
 
-    results = als(A_init, B_init, resp, pred; maxiter = 1000)
-    obj_est = ls_objective(resp, pred, results.A, results.B)
-
+    results = als(A_init, B_init, resp, pred)
+    results.A
     @test all(diff(results.track_obj) .<= 0)
-
 
 
 

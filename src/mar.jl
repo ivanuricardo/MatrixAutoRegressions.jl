@@ -32,10 +32,11 @@ function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMat
 
     for t in 1:obs
         B_num += resp[:, :, t]' * A * pred[:, :, t]
-        B_den += resp[:, :, t]' * A'A * pred[:, :, t]
+        B_den += pred[:, :, t]' * A'A * pred[:, :, t]
     end
 
     return B_num / B_den
+    #=return B_num * (B_den \ I)=#
 end
 
 function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractMatrix{T}) where T
@@ -50,6 +51,7 @@ function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractMat
     end
 
     return A_num / A_den
+    #=return A_num * (A_den \ I)=#
 end
 
 """
@@ -82,7 +84,9 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     track_b = fill(NaN, maxiter)
     track_obj = fill(NaN, maxiter)
 
+    num_iter = 0
     for i in 1:maxiter
+        num_iter += 1
         A_old = copy(A)
         B_old = copy(B)
         obj_old = copy(obj)
@@ -104,7 +108,7 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
 
         if i == maxiter
             @warn "Reached maximum number of iterations"
-            return (; A, B, track_a, track_b, track_obj)
+            return (; A, B, track_a, track_b, track_obj, obj, num_iter)
         end
     end
 
@@ -113,7 +117,7 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     track_obj = track_obj[.!isnan.(track_obj)]
     obj = ls_objective(resp, pred, A, B)
 
-    return (; A, B, track_a, track_b, track_obj, obj)
+    return (; A, B, track_a, track_b, track_obj, obj, num_iter)
 end
 
 function ls_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T

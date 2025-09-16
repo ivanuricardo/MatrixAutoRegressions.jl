@@ -59,7 +59,10 @@ end
 
     results = als(A_init, B_init, resp, pred)
     results.A
+
+    # Should be monotonically decreasing
     @test all(diff(results.track_obj) .<= 0)
+    @test isapprox(norm(results.A), 1)
 
 
 

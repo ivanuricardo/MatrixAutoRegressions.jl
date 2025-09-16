@@ -25,7 +25,7 @@ end
 
 @testset "generate_mar_coefs" begin
     n1, n2 = 3, 4
-    result = generate_mar_coefs(n1, n2; maxiters=100)
+    result = generate_mar_coefs(n1, n2; maxiter=100)
 
     # Test types
     @test isa(result.A, Matrix{Float64})

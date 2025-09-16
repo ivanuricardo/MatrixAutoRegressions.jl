@@ -103,7 +103,11 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
         track_obj[i] = abs(obj - obj_old)
 
         if track_a[i] < tol || track_b[i] < tol || track_obj[i] < tol
-            break
+            track_a = track_a[.!isnan.(track_a)]
+            track_b = track_b[.!isnan.(track_b)]
+            track_obj = track_obj[.!isnan.(track_obj)]
+
+            return (; A, B, track_a, track_b, track_obj, obj, num_iter)
         end
 
         if i == maxiter
@@ -111,13 +115,6 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
             return (; A, B, track_a, track_b, track_obj, obj, num_iter)
         end
     end
-
-    track_a = track_a[.!isnan.(track_a)]
-    track_b = track_b[.!isnan.(track_b)]
-    track_obj = track_obj[.!isnan.(track_obj)]
-    obj = ls_objective(resp, pred, A, B)
-
-    return (; A, B, track_a, track_b, track_obj, obj, num_iter)
 end
 
 function ls_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T

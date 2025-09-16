@@ -10,6 +10,7 @@ include("./types.jl")
 include("./mar.jl")
 export projection
 export als
+export ls_objective
 
 include("./utils.jl")
 export vectorize

@@ -24,24 +24,103 @@ end
 
 
 
-function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
-    A = copy(A_init)
-    B = copy(B_init)
-    n1, n2 = size(A, 1), size(B, 1)
-    n, obs = size(resp)
+@testset "ls objective" begin
 
-    for i in 1:maxiter
-        X_given_A = kron(I(n2), A) * pred
-        B = resp * X_given_A' * inv(X_given_A * X_given_A')
+    # If the snr goes up, the ssr should go down
+    obs = 100
+    results1 = simulate_mar(obs; snr = 0.2)
+    A_init1 = results1.A
+    B_init1 = results1.B
+    matdata1 = results1.Y
+
+    ssr1 = ls_objective(matdata1, A_init1, B_init1)
+
+    results2 = simulate_mar(obs; snr = 1)
+    A_init2 = results2.A
+    B_init2 = results2.B
+    matdata2 = results2.Y
+
+    ssr2 = ls_objective(matdata2, A_init2, B_init2)
+    @test ssr1 > ssr2
+
+end
+
+obs = 100
+results = simulate_mar(obs)
+A_init = results.A
+B_init = results.B
+matdata = results.Y
+resp = matdata[:, :, 2:end]
+pred = matdata[:, :, 1:end-1]
+maxiter = 1000
+tol = 1e-06
 
 
+A = copy(A_init)
+B = copy(B_init)
+n1, n2 = size(A, 1), size(B, 1)
+obs = size(resp, 3)
 
+function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}) where T
+    n2 = size(resp, 2)
+    B_num = zeros(n2, n2)
+    B_den = zeros(n2, n2)
+    obs = size(resp, 3)
 
-        X_given_B = kron(B, I(n1)) * pred
-        if i == maxiter
-            @warn "Reached maximum number of iterations"
-            return A, B
-        end
+    for t in 1:(obs-1)
+        B_num += resp[:, :, t]' * A * pred[:, :, t]
+        B_den += resp[:, :, t]' * A'A * pred[:, :, t]
+    end
+
+    return B_den / B_num
+end
+
+function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractMatrix{T}) where T
+    n1 = size(resp, 1)
+    A_num = zeros(n1, n1)
+    A_den = zeros(n1, n1)
+    obs = size(resp, 3)
+
+    for t in 1:(obs-1)
+        A_num += resp[:, :, t] * B * pred[:, :, t]'
+        A_den += pred[:, :, t] * B'B * pred[:, :, t]'
+    end
+
+    return A_den / A_num
+end
+
+track_a = fill(NaN, maxiter)
+track_b = fill(NaN, maxiter)
+
+for i in 1:maxiter
+    A_old = copy(A)
+    B_old = copy(B)
+    B = update_B(resp, pred, A)
+    A = update_A(resp, pred, B)
+
+    norm_A = norm(A)
+    A = A / norm_A
+    B = B * norm_A
+
+    track_a[i] = norm(A - A_old)
+    track_b[i] = norm(B - B_old)
+
+    if norm(A - A_old) < tol && norm(B - B_old) < tol
+        break
+    end
+
+    if i == maxiter
+        @warn "Reached maximum number of iterations"
+        return A, B
     end
 end
+
+
+
+
+
+
+
+
+
 

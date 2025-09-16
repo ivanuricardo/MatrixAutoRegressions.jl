@@ -48,10 +48,11 @@ function simulate_mar(
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 50,
     snr::Real = 0.7,
+    maxiters::Int = 100
     )
 
     if A === nothing || B === nothing
-        coefs = generate_mar_coefs(n1, n2)
+        coefs = generate_mar_coefs(n1, n2; maxiters)
         A = coefs.A
         B = coefs.B
     end

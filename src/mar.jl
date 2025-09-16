@@ -47,7 +47,7 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     A = copy(A_init)
     B = copy(B_init)
     n1, n2 = size(A, 1), size(B, 1)
-    n, obs = size(resp)
+    obs = size(resp, 3)
 
     for i in 1:maxiter
         X_given_A = kron(I(n2), A) * pred
@@ -63,3 +63,37 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
         end
     end
 end
+
+function ls_objective(data, A, B; p=1)
+    obs = size(data, 3)
+    resp = data[:, :, 2:end]
+    pred = data[:, :, 1:end-1]
+
+    ssr = 0
+    for i in 1:(obs-p)
+        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+        ssr += sum(abs2, residual)
+    end
+    
+    return ssr
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

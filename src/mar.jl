@@ -1,4 +1,32 @@
 
+function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}) where T
+    n2 = size(resp, 2)
+    B_num = zeros(n2, n2)
+    B_den = zeros(n2, n2)
+    obs = size(resp, 3)
+
+    for t in 1:obs
+        B_num += resp[:, :, t]' * A * pred[:, :, t]
+        B_den += resp[:, :, t]' * A'A * pred[:, :, t]
+    end
+
+    return B_num / B_den
+end
+
+function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractMatrix{T}) where T
+    n1 = size(resp, 1)
+    A_num = zeros(n1, n1)
+    A_den = zeros(n1, n1)
+    obs = size(resp, 3)
+
+    for t in 1:obs
+        A_num += resp[:, :, t] * B * pred[:, :, t]'
+        A_den += pred[:, :, t] * B'B * pred[:, :, t]'
+    end
+
+    return A_num / A_den
+end
+
 """
     projection(Phi::AbstractMatrix, m::Int, n::Int)
 
@@ -48,15 +76,32 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     B = copy(B_init)
     n1, n2 = size(A, 1), size(B, 1)
     obs = size(resp, 3)
+    obj = ls_objective(resp, pred, A, B)
+
+    track_a = fill(NaN, maxiter)
+    track_b = fill(NaN, maxiter)
+    track_obj = fill(NaN, maxiter)
 
     for i in 1:maxiter
-        X_given_A = kron(I(n2), A) * pred
-        B = resp * X_given_A' * inv(X_given_A * X_given_A')
+        A_old = copy(A)
+        B_old = copy(B)
+        obj_old = copy(obj)
+        B = update_B(resp, pred, A)
+        A = update_A(resp, pred, B)
 
+        obj = ls_objective(resp, pred, A, B)
+        norm_A = norm(A)
+        A = A / norm_A
+        B = B * norm_A
 
+        track_a[i] = norm(A - A_old)
+        track_b[i] = norm(B - B_old)
+        track_obj[i] = abs(obj - obj_old)
 
+        if track_a[i] < tol || track_b[i] < tol || track_obj[i] < tol
+            break
+        end
 
-        X_given_B = kron(B, I(n1)) * pred
         if i == maxiter
             @warn "Reached maximum number of iterations"
             return A, B
@@ -64,7 +109,7 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
     end
 end
 
-function ls_objective(data, A, B; p=1)
+function ls_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T
     obs = size(data, 3)
     resp = data[:, :, 2:end]
     pred = data[:, :, 1:end-1]
@@ -76,6 +121,18 @@ function ls_objective(data, A, B; p=1)
     end
     
     return ssr
+end
+
+function ls_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T
+    obs = size(resp, 3)
+    ssr = 0
+    for i in 1:(obs-p)
+        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+        ssr += sum(abs2, residual)
+    end
+    
+    return ssr
+    
 end
 
 

@@ -4,12 +4,12 @@
 Generate MAR coefficients with the normalization that A has a frobenius norm 
 of one.
 """
-function generate_mar_coefs(n1, n2; maxiters=100)
+function generate_mar_coefs(n1, n2; maxiter=100)
     A = Array{Float64, 2}(undef, n1, n1)
     B = Array{Float64, 2}(undef, n2, n2)
     scale = 1
 
-    for i in 1:maxiters
+    for i in 1:maxiter
         preA = scale * randn(n1, n1)
         normA = norm(preA)
         A .= preA / normA
@@ -24,7 +24,7 @@ function generate_mar_coefs(n1, n2; maxiters=100)
 
         if i % 20 == 0
             # If it doesn't work after 20 mod iterations, decrease scale
-            scale = scale * 0.9
+            scale *= 0.9
         end
     end
 
@@ -48,11 +48,11 @@ function simulate_mar(
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 50,
     snr::Real = 0.7,
-    maxiters::Int = 100
+    maxiter::Int = 100
     )
 
     if A === nothing || B === nothing
-        coefs = generate_mar_coefs(n1, n2; maxiters)
+        coefs = generate_mar_coefs(n1, n2; maxiter)
         A = coefs.A
         B = coefs.B
     end
@@ -79,5 +79,6 @@ function simulate_mar(
         Y[:, :, t] = A * Y[:, :, t-1] * B' + matrix_errs[t]
     end
     Y = Y[:, :, burnin+1:end]
-    return (; Y, A, B, Sigma1, Sigma2)
+    sorted_eigs = sort(abs.(eigvals(kron(B, A))), rev=true)
+    return (; Y, A, B, Sigma1, Sigma2, sorted_eigs)
 end

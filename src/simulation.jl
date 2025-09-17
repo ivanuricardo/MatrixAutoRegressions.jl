@@ -75,9 +75,11 @@ function simulate_mar(
     Y[:, :, 1] = zeros(n1, n2)
     matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
     matrix_errs = rand(matrix_normal, total_obs)
+
     for t in 2:total_obs
         Y[:, :, t] = A * Y[:, :, t-1] * B' + matrix_errs[t]
     end
+
     Y = Y[:, :, burnin+1:end]
     sorted_eigs = sort(abs.(eigvals(kron(B, A))), rev=true)
     return (; Y, A, B, Sigma1, Sigma2, sorted_eigs)

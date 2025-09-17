@@ -24,7 +24,7 @@ function projection(phi::AbstractMatrix{T}, n1::Int, n2::Int) where T
     return (; A, B, phi_est)
 end
 
-function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}) where T
+function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractVecOrMat{T}) where T
     n2 = size(resp, 2)
     B_num = zeros(n2, n2)
     B_den = zeros(n2, n2)
@@ -39,7 +39,7 @@ function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMat
     #=return B_num * (B_den \ I)=#
 end
 
-function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractMatrix{T}) where T
+function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractVecOrMat{T}) where T
     n1 = size(resp, 1)
     A_num = zeros(n1, n1)
     A_den = zeros(n1, n1)

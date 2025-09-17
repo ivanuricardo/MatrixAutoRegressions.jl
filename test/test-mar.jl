@@ -64,8 +64,23 @@ end
     @test all(diff(results.track_obj) .<= 0)
     @test isapprox(norm(results.A), 1)
 
+end
 
+@testset "update_A/B scalar case" begin
+    resp = reshape([2.0, 4.0], 1, 1, 2)   # size (1,1,2)
+    pred = reshape([1.0, 2.0], 1, 1, 2)
+    A = [1.0]
+    B = [1.0]
 
+    B_new = update_B(resp, pred, A)
+    A_new = update_A(resp, pred, B)
+
+    # In scalar case, they reduce to weighted least squares ratios
+    expected_B = (2*1*1 + 4*1*2) / (1*1*1 + 2*1*2)   # hand-computed
+    expected_A = (2*1*1 + 4*1*2) / (1*1*1 + 2*1*2)
+
+    @test isapprox(B_new[1], expected_B; atol=1e-12)
+    @test isapprox(A_new[1], expected_A; atol=1e-12)
 end
 
 

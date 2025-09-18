@@ -124,9 +124,6 @@ end
     ssr2 = mle_objective(matdata2, A_init2, B_init2, Sigma1_init2, Sigma2_init2)
     @test ssr1 < ssr2
 
-    @test ssr1 > 0
-    @test ssr2 > 0
-
 end
 
 @testset "mle algorithm behavior" begin

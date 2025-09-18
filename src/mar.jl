@@ -1,4 +1,7 @@
 
+_update_fac(S::UniformScaling) = S
+_update_fac(S::AbstractMatrix) = factorize(S)
+
 """
     projection(Phi::AbstractMatrix, m::Int, n::Int)
 
@@ -14,7 +17,7 @@ Compute the nearest Kronecker product (NKP) projection of Phi onto B ⊗ A.
 """
 function projection(phi::AbstractMatrix{T}, n1::Int, n2::Int) where T
     n = size(phi, 1)
-    @assert n == n1 * n2 " Size mismatch: n1 * n2 ≠ n"
+    @assert n == n1 * n2 "Size mismatch: n1 * n2 ≠ n"
     tensor_phi = reshape(phi, (n1, n2, n1, n2))
     R = reshape(permutedims(tensor_phi, (1, 3, 2, 4)), n1 * n1, n2 * n2)
     F = svd(R)
@@ -24,34 +27,42 @@ function projection(phi::AbstractMatrix{T}, n1::Int, n2::Int) where T
     return (; A, B, phi_est)
 end
 
-function update_B(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractVecOrMat{T}) where T
+function update_B(resp::AbstractArray{T},
+                  pred::AbstractArray{T},
+                  A::AbstractVecOrMat{T};
+                  Sigma1=I) where T
     n2 = size(resp, 2)
-    B_num = zeros(n2, n2)
-    B_den = zeros(n2, n2)
+    B_num = zeros(T, n2, n2)
+    B_den = zeros(T, n2, n2)
     obs = size(resp, 3)
 
+    fac = _update_fac(Sigma1)
+
     for t in 1:obs
-        B_num += resp[:, :, t]' * A * pred[:, :, t]
-        B_den += pred[:, :, t]' * A'A * pred[:, :, t]
+        B_num += (resp[:, :, t]' / fac) * A * pred[:, :, t]
+        B_den += (pred[:, :, t]' * A' / fac) * A * pred[:, :, t]
     end
 
     return B_num / B_den
-    #=return B_num * (B_den \ I)=#
 end
 
-function update_A(resp::AbstractArray{T}, pred::AbstractArray{T}, B::AbstractVecOrMat{T}) where T
+function update_A(resp::AbstractArray{T},
+                  pred::AbstractArray{T},
+                  B::AbstractVecOrMat{T};
+                  Sigma2=I) where T
     n1 = size(resp, 1)
     A_num = zeros(n1, n1)
     A_den = zeros(n1, n1)
     obs = size(resp, 3)
 
+    fac = _update_fac(Sigma2)
+
     for t in 1:obs
-        A_num += resp[:, :, t] * B * pred[:, :, t]'
-        A_den += pred[:, :, t] * B'B * pred[:, :, t]'
+        A_num += (resp[:, :, t] / fac) * B * pred[:, :, t]'
+        A_den += (pred[:, :, t] * B' / fac) * B * pred[:, :, t]'
     end
 
     return A_num / A_den
-    #=return A_num * (A_den \ I)=#
 end
 
 """
@@ -73,7 +84,13 @@ Alternating Least Squares estimation for the MAR(1) model:
 # Returns
 - `(A, B)`: estimated matrices.
 """
-function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
+function als(A_init::AbstractVecOrMat{T},
+    B_init::AbstractVecOrMat{T},
+    resp::AbstractArray{T},
+    pred::AbstractArray{T};
+    maxiter::Int=100,
+    tol::Real=1e-6,
+    ) where T
     A = copy(A_init)
     B = copy(B_init)
     n1, n2 = size(A, 1), size(B, 1)
@@ -92,6 +109,66 @@ function als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)
         obj_old = copy(obj)
         B = update_B(resp, pred, A)
         A = update_A(resp, pred, B)
+
+        obj = ls_objective(resp, pred, A, B)
+        norm_A = norm(A)
+        A = A / norm_A
+        B = B * norm_A
+
+        track_a[i] = norm(A - A_old)
+        track_b[i] = norm(B - B_old)
+        track_obj[i] = abs(obj - obj_old)
+
+        if track_a[i] < tol || track_b[i] < tol || track_obj[i] < tol
+            track_a = track_a[.!isnan.(track_a)]
+            track_b = track_b[.!isnan.(track_b)]
+            track_obj = track_obj[.!isnan.(track_obj)]
+
+            return (; A, B, track_a, track_b, track_obj, obj, num_iter)
+        end
+
+        if i == maxiter
+            @warn "Reached maximum number of iterations"
+            return (; A, B, track_a, track_b, track_obj, obj, num_iter)
+        end
+    end
+end
+
+function mle(A_init::AbstractVecOrMat{T},
+    B_init::AbstractVecOrMat{T},
+    Sigma1_init::AbstractMatrix{T},
+    Sigma2_init::AbstractMatrix{T},
+    resp::AbstractArray{T},
+    pred::AbstractArray{T};
+    maxiter::Int=100,
+    tol::Real=1e-6,
+    ) where T
+    A = copy(A_init)
+    B = copy(B_init)
+    Sigma1 = copy(Sigma1_init)
+    Sigma2 = copy(Sigma2_init)
+
+    n1, n2 = size(A, 1), size(B, 1)
+    obs = size(resp, 3)
+    obj = ls_objective(resp, pred, A, B)
+
+    track_a = fill(NaN, maxiter)
+    track_b = fill(NaN, maxiter)
+    track_obj = fill(NaN, maxiter)
+
+    num_iter = 0
+    for i in 1:maxiter
+        num_iter += 1
+        A_old = copy(A)
+        B_old = copy(B)
+        Sigma1_old = copy(Sigma1)
+        Sigma2_old = copy(Sigma2)
+        obj_old = copy(obj)
+
+        B = update_B(resp, pred, A)
+        A = update_A(resp, pred, B)
+        Sigma1 = update_Sigma1(resp, pred)
+        Sigma1 = update_Sigma1(resp, pred)
 
         obj = ls_objective(resp, pred, A, B)
         norm_A = norm(A)
@@ -143,6 +220,38 @@ function ls_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::Abstrac
     
 end
 
+function mle_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
+    resp = data[:, :, 2:end]
+    pred = data[:, :, 1:end-1]
+    obs = size(resp, 3)
+
+    ssr = 0
+    fac1 = _update_fac(Sigma1)
+    fac2 = _update_fac(Sigma2)
+
+    for i in 1:(obs-p)
+        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+        ssr += tr((fac1 \ residual) / fac2 * residual')
+    end
+    
+    return ssr
+    
+end
+
+function mle_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
+    obs = size(resp, 3)
+    ssr = 0
+    fac1 = _update_fac(Sigma1)
+    fac2 = _update_fac(Sigma2)
+
+    for i in 1:(obs-p)
+        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+        ssr += tr((fac1 \ residual) / fac2 * residual')
+    end
+    
+    return ssr
+    
+end
 
 
 

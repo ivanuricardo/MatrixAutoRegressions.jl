@@ -11,6 +11,7 @@ include("./mar.jl")
 export projection
 export als
 export ls_objective
+export mle_objective
 export update_A
 export update_B
 

@@ -10,6 +10,7 @@ include("./types.jl")
 include("./mar.jl")
 export projection
 export als
+export mle
 export ls_objective
 export mle_objective
 export update_A

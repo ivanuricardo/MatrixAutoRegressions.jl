@@ -1,5 +1,4 @@
 
-
 """
 Generate MAR coefficients with the normalization that A has a frobenius norm 
 of one.
@@ -64,7 +63,7 @@ function simulate_mar(
         eigval_coef = maxeigA * maxeigB
         eigval_err = eigval_coef / snr
         Sigma = diagm(repeat([eigval_err], n1 * n2))
-        Sigma1, Sigma2, Sigma = projection(Sigma, n1, n2)
+        Sigma1, Sigma2, Sigma = projection(Sigma, (n1, n2))
         Sigma1 = abs.(Sigma1)
         Sigma2 = abs.(Sigma2)
     end

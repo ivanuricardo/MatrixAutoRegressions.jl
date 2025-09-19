@@ -1,4 +1,84 @@
 
+mutable struct MAR <: AbstractARModel
+    A::Union{Nothing, Matrix{Float64}}
+    B::Union{Nothing, Matrix{Float64}}
+    p::Int
+    Sigma1::Union{Nothing, Matrix{Float64}}
+    Sigma2::Union{Nothing, Matrix{Float64}}
+    dims::Tuple{Int,Int}
+    obs::Int
+    method::Symbol
+    resp::AbstractArray
+    pred::AbstractArray
+    maxiter::Int
+    tol::Float64
+    iters::Union{Nothing, Int}
+end
+
+function MAR(data::AbstractArray;
+    p::Int=1,
+    method::Symbol=:ls,
+    A::Union{Nothing, AbstractVecOrMat}=nothing,
+    B::Union{Nothing, AbstractVecOrMat}=nothing,
+    maxiter::Int=100,
+    tol::Real=1e-6,
+    )
+
+    # Demean over time
+    demeaned_data = data .- mean(data, dims=3)
+    resp = demeaned_data[:, :, 2:end]
+    pred = demeaned_data[:, :, 1:end-1]
+
+    dims = size(data)[1:2]
+    obs = size(data, 3)
+    iters = nothing
+
+    return MAR(A, B, p, nothing, nothing, dims, obs, method, resp, pred, maxiter, tol, iters)
+end
+
+function fit!(model::MAR)
+    ols_est = ols(model.resp, model.pred; model.p)
+    proj_est = projection(ols_est, model.dims)
+
+    if model.method == :proj
+        model.A = proj_est.A
+        model.B = proj_est.B
+
+    elseif model.method == :ls
+
+        A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
+        B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
+
+        results = als(A0, B0, model.resp, model.pred;
+            maxiter=model.maxiter, tol=model.tol)
+
+        model.A = results.A
+        model.B = results.B
+        model.iters = results.num_iter
+
+    elseif model.method == :mle
+
+        A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
+        B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
+        Sigma1_init = Matrix{Float64}(I(model.dims[1]))
+        Sigma2_init = Matrix{Float64}(I(model.dims[2]))
+
+        results = mle(A0, B0, Sigma1_init, Sigma2_init, model.resp, model.pred;
+            maxiter=model.maxiter, tol=model.tol)
+
+        model.A = results.A
+        model.B = results.B
+        model.Sigma1 = results.Sigma1
+        model.Sigma2 = results.Sigma2
+        model.iters = results.num_iter
+
+    else
+        throw(ArgumentError("Unknown method: $(model.method)"))
+    end
+
+    return model
+end
+
 _update_fac(S::UniformScaling) = S
 _update_fac(S::AbstractMatrix) = factorize(S)
 
@@ -15,8 +95,9 @@ Compute the nearest Kronecker product (NKP) projection of Phi onto B ⊗ A.
 - A_hat, B_hat: Projection estimators of A and B
 - phi_est: Estimated phi calculated as B ⊗ A
 """
-function projection(phi::AbstractMatrix{T}, n1::Int, n2::Int) where T
+function projection(phi::AbstractMatrix{T}, dims::Tuple) where T
     n = size(phi, 1)
+    n1, n2 = dims
     @assert n == n1 * n2 "Size mismatch: n1 * n2 ≠ n"
     tensor_phi = reshape(phi, (n1, n2, n1, n2))
     R = reshape(permutedims(tensor_phi, (1, 3, 2, 4)), n1 * n1, n2 * n2)
@@ -24,6 +105,11 @@ function projection(phi::AbstractMatrix{T}, n1::Int, n2::Int) where T
     A = reshape(F.U[:, 1] * sqrt(F.S[1]), n1, n1)
     B = reshape(F.V[:, 1] * sqrt(F.S[1]), n2, n2)
     phi_est = kron(B, A)
+
+    norm_A = norm(A)
+    A = A / norm_A
+    B = B * norm_A
+
     return (; A, B, phi_est)
 end
 
@@ -248,6 +334,11 @@ function ls_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::Abstrac
     
 end
 
+function ls_objective(model::MAR)
+    require_fitted(model)
+    return ls_objective(model.resp, model.pred, model.A, model.B; model.p)
+end
+
 function mle_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
     resp = data[:, :, 2:end]
     pred = data[:, :, 1:end-1]
@@ -285,21 +376,12 @@ function mle_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::Abstra
     
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function mle_objective(model::MAR)
+    require_fitted(model)
+    if model.Sigma1 == nothing || model.Sigma2 == nothing
+        model.Sigma1 = I(model.dims[1])
+        model.Sigma2 = I(model.dims[2])
+    end
+    return mle_objective(model.resp, model.pred, model.A, model.B, model.Sigma1, model.Sigma2; model.p)
+end
 

@@ -86,3 +86,30 @@ function isstable(A::AbstractMatrix{T},
     maxeigB = maximum(abs.(eigen(B).values))
     return maxeigA * maxeigB < maxeigen
 end
+
+function ols(resp::AbstractArray, pred::AbstractArray; p::Int = 1)
+    vec_resp = vectorize(resp)
+    vec_pred = vectorize(pred)
+
+    return vec_resp * vec_pred' / (vec_pred * vec_pred')
+end
+
+function is_fitted(model::MAR)
+    return !(isnothing(model.A) || isnothing(model.B))
+end
+
+function require_fitted(model::AbstractARModel)
+    is_fitted(model) && return true
+    error("$(typeof(model)) must first be estimated.")
+end
+
+
+function Base.show(io::IO, model::MAR)
+    print(io, "MAR model (p=$(model.p), method=$(model.method))\n")
+    print(io, "dims=$(model.dims), obs=$(model.obs)\n")
+    print(io, "A=$(model.A === nothing ? "unset" : size(model.A)) ")
+    print(io, "B=$(model.B === nothing ? "unset" : size(model.B)) ")
+    if model.Sigma1 !== nothing && model.Sigma2 !== nothing
+        print(io, "Σ₁=$(size(model.Sigma1)), Σ₂=$(size(model.Sigma2))")
+    end
+end

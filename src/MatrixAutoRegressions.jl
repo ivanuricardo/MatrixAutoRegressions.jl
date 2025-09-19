@@ -8,6 +8,8 @@ using Random
 
 include("./types.jl")
 include("./mar.jl")
+export MAR
+export fit!
 export projection
 export als
 export mle
@@ -21,6 +23,8 @@ export vectorize
 export matricize
 export make_companion
 export isstable
+export ols
+export require_fitted
 
 include("./simulation.jl")
 export generate_mar_coefs

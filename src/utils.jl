@@ -89,7 +89,7 @@ function isstable(A::AbstractArray{T}, B::AbstractArray{T}; maxeigen::Real=0.9) 
 
 end
 
-function ols(resp::AbstractArray, pred::AbstractArray; p::Int = 1)
+function ols(resp::AbstractArray, pred::AbstractArray)
     vec_resp = vectorize(resp)
     vec_pred = vectorize(pred)
 
@@ -105,11 +105,16 @@ function require_fitted(model::AbstractARModel)
     error("$(typeof(model)) must first be estimated.")
 end
 
-function normalize_slices!(A::AbstractArray{<:Real,3})
+function normalize_slices(A::AbstractArray{T,3}, B::AbstractArray{T, 3}) where T
+    n1, _, p = size(A)
+    n2 = size(B, 1)
+    A_normalized = Array{Float64}(undef, n1, n1, p)
+    B_normalized = Array{Float64}(undef, n2, n2, p)
     for i in 1:size(A, 3)
-        A[:, :, i] /= norm(A[:, :, i])
+        A_normalized[:, :, i] = A[:, :, i] / norm(A[:, :, i])
+        B_normalized[:, :, i] = B[:, :, i] * norm(A[:, :, i])
     end
-    return A
+    return A_normalized, B_normalized
 end
 
 function Base.show(io::IO, model::MAR)

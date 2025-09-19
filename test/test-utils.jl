@@ -35,14 +35,12 @@ end
 
 @testset "normalizing slices" begin
 
-    A = randn(3,3,2)
-    normalize_slices!(A)
-    @test isapprox(norm(A[:, :, 1]), 1)
-    @test isapprox(norm(A[:, :, 2]), 1)
-
-    B = randn(5,5,3)
-    normalize_slices!(B)
-    @test isapprox(norm(B[:, :, 1]), 1)
-    @test isapprox(norm(B[:, :, 2]), 1)
+    A = randn(3, 3, 2)
+    B = randn(4, 4, 2)
+    A_new, B_new = normalize_slices(A, B)
+    @test isapprox(norm(A_new[:, :, 1]), 1)
+    @test isapprox(norm(A_new[:, :, 2]), 1)
+    @test isapprox(kron(B[:, :, 1], A[:, :, 1]), kron(B_new[:, :, 1], A_new[:, :, 1]))
+    @test isapprox(kron(B[:, :, 2], A[:, :, 2]), kron(B_new[:, :, 2], A_new[:, :, 2]))
 
 end

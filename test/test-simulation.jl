@@ -24,20 +24,38 @@ end
 
 
 @testset "generate_mar_coefs" begin
-    n1, n2 = 3, 4
-    result = generate_mar_coefs(n1, n2; maxiter=100)
+    n1, n2, p = 3, 4, 1
+    result = generate_mar_coefs(n1, n2; p)
 
     # Test types
-    @test isa(result.A, Matrix{Float64})
-    @test isa(result.B, Matrix{Float64})
-    @test isa(result.phi, Matrix{Float64})
+    @test isa(result.A, Array{Float64})
+    @test isa(result.B, Array{Float64})
+    @test isa(result.phi, Array{Float64})
     @test isa(result.eig_phi, Vector{Float64})
 
     # Test sizes
-    @test size(result.A) == (n1, n1)
-    @test size(result.B) == (n2, n2)
-    @test size(result.phi) == (n1*n2, n1*n2)
-    @test length(result.eig_phi) == n1*n2
+    @test size(result.A) == (n1, n1, p)
+    @test size(result.B) == (n2, n2, p)
+    @test size(result.phi) == (n1*n2*p, n1*n2*p)
+    @test length(result.eig_phi) == n1*n2*p
+
+    # Test stability
+    @test isstable(result.A, result.B)
+
+    n1, n2, p = 4, 5, 2
+    result = generate_mar_coefs(n1, n2; p)
+
+    # Test types
+    @test isa(result.A, Array{Float64})
+    @test isa(result.B, Array{Float64})
+    @test isa(result.phi, Array{Float64})
+    @test isa(result.eig_phi, Vector{Float64})
+
+    # Test sizes
+    @test size(result.A) == (n1, n1, p)
+    @test size(result.B) == (n2, n2, p)
+    @test size(result.phi) == (n1*n2*p, n1*n2*p)
+    @test length(result.eig_phi) == n1*n2*p
 
     # Test stability
     @test isstable(result.A, result.B)

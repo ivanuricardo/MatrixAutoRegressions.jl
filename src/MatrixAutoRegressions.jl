@@ -25,6 +25,7 @@ export make_companion
 export isstable
 export ols
 export require_fitted
+export normalize_slices!
 
 include("./simulation.jl")
 export generate_mar_coefs

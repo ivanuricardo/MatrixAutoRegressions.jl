@@ -1,6 +1,3 @@
-function make_companion()
-    return nothing
-end
 
 function vectorize(data::AbstractArray{T}) where T
     n1, n2, obs = size(data)
@@ -36,7 +33,7 @@ Thus, ``B`` is a ``np\times np`` matrix.
 
 
 """
-function makecompanion(B::AbstractMatrix{T}) where {T}
+function make_companion(B::AbstractMatrix{T}) where {T}
     n = Int(size(B, 1))
     p = Int(size(B, 2) / n)
     ident = diagm(fill(T(1), n * (p - 1)))
@@ -78,13 +75,18 @@ function isstable(var::AbstractMatrix{T}; maxeigen::Real=0.9) where {T}
     return maximum(abs.(eigen(C).values)) < maxeigen
 end
 
-function isstable(A::AbstractMatrix{T},
-    B::AbstractMatrix{T};
-    maxeigen::Real=0.9) where T
+function isstable(A::AbstractArray{T}, B::AbstractArray{T}; maxeigen::Real=0.9) where T
 
-    maxeigA = maximum(abs.(eigen(A).values))
-    maxeigB = maximum(abs.(eigen(B).values))
-    return maxeigA * maxeigB < maxeigen
+    if size(A, 3) == 1
+        maxeigA = maximum(abs.(eigen(A[:, :, 1]).values))
+        maxeigB = maximum(abs.(eigen(B[:, :, 1]).values))
+        return maxeigA * maxeigB < maxeigen
+    end
+    C = hcat([kron(B[:, :, i], A[:, :, i]) for i in 1:size(A, 3)]...)
+
+    companion_C = make_companion(C)
+    return maximum(abs.(eigen(companion_C).values)) < maxeigen
+
 end
 
 function ols(resp::AbstractArray, pred::AbstractArray; p::Int = 1)
@@ -103,6 +105,12 @@ function require_fitted(model::AbstractARModel)
     error("$(typeof(model)) must first be estimated.")
 end
 
+function normalize_slices!(A::AbstractArray{<:Real,3})
+    for i in 1:size(A, 3)
+        A[:, :, i] /= norm(A[:, :, i])
+    end
+    return A
+end
 
 function Base.show(io::IO, model::MAR)
     print(io, "MAR model (p=$(model.p), method=$(model.method))\n")
@@ -113,3 +121,4 @@ function Base.show(io::IO, model::MAR)
         print(io, "Σ₁=$(size(model.Sigma1)), Σ₂=$(size(model.Sigma2))")
     end
 end
+

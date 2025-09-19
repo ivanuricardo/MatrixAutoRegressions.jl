@@ -212,6 +212,7 @@ function als(A_init::AbstractVecOrMat{T},
     pred::AbstractArray{T};
     maxiter::Int=100,
     tol::Real=1e-6,
+    p::Int=1
     ) where T
     A = copy(A_init)
     B = copy(B_init)

@@ -4,27 +4,29 @@ Generate MAR coefficients with the normalization that A has a frobenius norm
 of one.
 """
 function generate_mar_coefs(n1, n2; maxiter=100)
-    A = Array{Float64, 2}(undef, n1, n1)
-    B = Array{Float64, 2}(undef, n2, n2)
+    A = Array{Float64, 3}(undef, n1, n1, p)
+    B = Array{Float64, 3}(undef, n2, n2, p)
     scale = 1
 
     for i in 1:maxiter
-        preA = scale * randn(n1, n1)
-        normA = norm(preA)
-        A .= preA / normA
-        preB = randn(n2, n2)
-        B .= preB * normA
+        for j in 1:p
+            preA = scale * randn(n1, n1)
+            normA = norm(preA)
+            A .= preA / normA
+            preB = randn(n2, n2)
+            B .= preB * normA
 
-        if isstable(A, B)
-            phi = kron(B, A)
-            eig_phi = sort(abs.(eigvals(phi)), rev=true)
-            return (;A, B, phi, eig_phi)
+            if i % 20 == 0
+                # If it doesn't work after 20 mod iterations, decrease scale
+                scale *= 0.9
+            end
         end
 
-        if i % 20 == 0
-            # If it doesn't work after 20 mod iterations, decrease scale
-            scale *= 0.9
-        end
+            if isstable(A, B)
+                phi = kron(B, A)
+                eig_phi = sort(abs.(eigvals(phi)), rev=true)
+                return (;A, B, phi, eig_phi)
+            end
     end
 
     @warn "Reached the maximum number of iterations! May not be stable."

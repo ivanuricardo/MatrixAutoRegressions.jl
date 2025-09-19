@@ -83,57 +83,6 @@ fit!(model_mle)
 
 ---
 
-## API reference (selected)
-
-### `mutable struct MAR`
-
-Fields:
-
-* `A, B` — estimated coefficient matrices or `nothing` before fit.
-* `p` — lag order (currently code assumes `p=1` in many places).
-* `Sigma1, Sigma2` — row/column covariance factors for the matrix-normal error.
-* `dims` — `(n1, n2)`
-* `obs` — number of time observations
-* `method` — `:proj`, `:ls`, or `:mle`
-* `resp`, `pred` — internal demeaned response and predictor arrays
-* `maxiter`, `tol` — control iterative solvers
-* `iters` — number of iterations used (set after fitting)
-
-### Constructors
-
-* `MAR(data::AbstractArray; p::Int=1, method::Symbol=:ls, A=nothing, B=nothing, maxiter=100, tol=1e-6)`
-
-  * `data` should be `n1 × n2 × T`. The constructor demeans across time and builds `resp`/`pred` (y₂..T, y₁..T-1).
-
-### `fit!(model::MAR)`
-
-Estimate parameters according to `model.method`. Returns the mutated `model`.
-
-### `projection(phi, dims)`
-
-Compute the nearest Kronecker-product projection of a vectorized coefficient matrix `phi` (or covariance) onto `B ⊗ A`. Returns a named tuple `(A, B, phi_est)`.
-
-### `als(A_init, B_init, resp, pred; maxiter=100, tol=1e-6)`
-
-Alternating Least Squares that returns `(A, B, track_obj, obj, num_iter)`.
-
-### `mle(A_init, B_init, Sigma1_init, Sigma2_init, resp, pred; maxiter=100, tol=1e-6)`
-
-Iterative MLE routine returning `(A, B, Sigma1, Sigma2, track_obj, obj, num_iter)`.
-
-### `simulate_mar(obs; n1=3, n2=4, A=nothing, B=nothing, Sigma1=nothing, Sigma2=nothing, burnin=50, snr=0.7)`
-
-Simulate `obs` observations from a MAR(1). If `A`/`B` not given, random stable coefficients are generated. Returns a named tuple with `Y, A, B, Sigma1, Sigma2, sorted_eigs`.
-
-### Helpers
-
-* `generate_mar_coefs` — generate normalized stable `A` and `B`.
-* `vectorize`, `matricize` — reshape helpers.
-* `makecompanion`, `isstable` — VAR companion and stability checks.
-* `ls_objective`, `mle_objective` — objective functions for diagnostics.
-
----
-
 ## Notes & Design decisions
 
 * The package normalizes `A` to have Frobenius norm 1 and rescales `B` accordingly. This avoids scale indeterminacy in the Kronecker decomposition.
@@ -165,15 +114,3 @@ Contributions welcome! Please open issues for bug reports and feature requests. 
 
 ---
 
-## License
-
-Choose and add a license (MIT/Apache-2.0 recommended).
-
----
-
-If you'd like, I can also:
-
-* add badges (CI, codecov),
-* generate a `Project.toml` example,
-* produce unit-test skeletons, or
-* create usage notebooks with plots and comparisons between `:proj`, `:ls`, and `:mle` estimation.

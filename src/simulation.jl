@@ -22,18 +22,14 @@ function generate_mar_coefs(n1, n2; p::Int=1, maxiter::Int=500)
             scale *= 0.9
         end
         if isstable(A, B)
-            phi = hcat([kron(B[:, :, i], A[:, :, i]) for i in 1:size(A, 3)]...)
-            companion_phi = make_companion(phi)
-            eig_phi = sort(abs.(eigvals(companion_phi)), rev=true)
-            return (;A, B, companion_phi, eig_phi)
+            sorted_eigs = mar_eigvals(A, B)
+            return (;A, B, sorted_eigs)
         end
     end
 
     @warn "Reached the maximum number of iterations! May not be stable."
-    phi = kron(B, A)
-    eig_phi = sort(abs.(eigvals(phi)), rev=true)
-    return (;A, B, phi, eig_phi)
-
+    sorted_eigs = mar_eigvals(A, B)
+    return (;A, B, sorted_eigs)
 end
 
 """
@@ -43,26 +39,25 @@ function simulate_mar(
     obs::Int;
     n1::Int = 3,
     n2::Int = 4,
-    A::Union{Nothing, AbstractVecOrMat} = nothing,
-    B::Union{Nothing, AbstractVecOrMat} = nothing,
+    p::Int = 1,
+    A::Union{Nothing, AbstractArray} = nothing,
+    B::Union{Nothing, AbstractArray} = nothing,
     Sigma1::Union{Nothing, AbstractMatrix} = nothing,
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 50,
     snr::Real = 0.7,
-    maxiter::Int = 100,
+    maxiter::Int = 500,
     )
 
     if A === nothing || B === nothing
-        coefs = generate_mar_coefs(n1, n2; maxiter)
+        coefs = generate_mar_coefs(n1, n2; p, maxiter)
         A = coefs.A
         B = coefs.B
     end
 
     if Sigma1 === nothing || Sigma2 === nothing
         # For snr
-        maxeigA = maximum(abs.(eigen(A).values))
-        maxeigB = maximum(abs.(eigen(B).values))
-        eigval_coef = maxeigA * maxeigB
+        eigval_coef = maximum(mar_eigvals(A, B))
         eigval_err = eigval_coef / snr
         Sigma = diagm(repeat([eigval_err], n1 * n2))
         Sigma1, Sigma2, Sigma = projection(Sigma, (n1, n2))
@@ -77,11 +72,15 @@ function simulate_mar(
     matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
     matrix_errs = rand(matrix_normal, total_obs)
 
-    for t in 2:total_obs
-        Y[:, :, t] = A * Y[:, :, t-1] * B' + matrix_errs[t]
+    for t in (p+1):total_obs
+        Y[:, :, t] = matrix_errs[t]
+        for j in 1:p
+            Y[:, :, t] .+= A[:, :, j] * Y[:, :, t-j] * B[:, :, j]'
+        end
     end
 
     Y = Y[:, :, burnin+1:end]
-    sorted_eigs = sort(abs.(eigvals(kron(B, A))), rev=true)
+    sorted_eigs = mar_eigvals(A, B)
+
     return (; Y, A, B, Sigma1, Sigma2, sorted_eigs)
 end

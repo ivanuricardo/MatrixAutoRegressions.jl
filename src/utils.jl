@@ -42,6 +42,13 @@ function make_companion(B::AbstractMatrix{T}) where {T}
     return companion
 end
 
+function mar_eigvals(A::AbstractArray{T}, B::AbstractArray{T}) where T
+    phi = hcat([kron(B[:, :, i], A[:, :, i]) for i in 1:size(A, 3)]...)
+    companion_phi = make_companion(phi)
+    eig_phi = sort(abs.(eigvals(companion_phi)), rev=true)
+    return eig_phi
+end
+
 """
     isstable(var)
 
@@ -82,10 +89,7 @@ function isstable(A::AbstractArray{T}, B::AbstractArray{T}; maxeigen::Real=0.9) 
         maxeigB = maximum(abs.(eigen(B[:, :, 1]).values))
         return maxeigA * maxeigB < maxeigen
     end
-    C = hcat([kron(B[:, :, i], A[:, :, i]) for i in 1:size(A, 3)]...)
-
-    companion_C = make_companion(C)
-    return maximum(abs.(eigen(companion_C).values)) < maxeigen
+    return maximum(mar_eigvals(A, B)) < maxeigen
 
 end
 

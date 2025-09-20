@@ -35,6 +35,16 @@
 
 end
 
+@testset "VAR estimation" begin
+
+    obs = 100
+    dgp = simulate_mar(obs)
+    matdata = dgp.Y
+    true_coef = kron(dgp.B[1], dgp.A[1])
+    
+
+end
+
 @testset "ls objective" begin
 
     # If the snr goes up, the ssr should go down

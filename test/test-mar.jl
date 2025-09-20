@@ -4,17 +4,17 @@
     A1 = randn(n1,n1)
     B1 = randn(n2,n2)
 
-    phi1 = kron(B1, A1)
+    phi = [kron(B1, A1)]
 
-    est = projection(phi1, (n1, n2))
+    est = projection(phi, (n1, n2))
     true_a1 = A1 / norm(A1)
-    @test isapprox(true_a1, est.A; atol=1e-8) || isapprox(true_a1, -est.A; atol=1e-8)
+    @test isapprox(true_a1, est.A[1]; atol=1e-8) || isapprox(true_a1, -est.A[1]; atol=1e-8)
 
     true_b1 = B1 * norm(A1)
-    @test isapprox(true_b1, est.B; atol=1e-8) || isapprox(true_b1, -est.B; atol=1e-8)
+    @test isapprox(true_b1, est.B[1]; atol=1e-8) || isapprox(true_b1, -est.B[1]; atol=1e-8)
 
     true_product = kron(B1, A1)
-    est_product = kron(est.B, est.A)
+    est_product = kron(est.B[1], est.A[1])
     @test isapprox(est_product, true_product, atol=1e-08)
 
     # Adding another coef as a lag
@@ -22,7 +22,7 @@
     B2 = randn(n2, n2)
 
     phi2 = kron(B2, A2)
-    phi = cat(phi1, phi2; dims = 3)
+    push!(phi, phi2)
 
     est2 = projection(phi, (n1, n2))
     true_a2 = A2 / norm(A2)

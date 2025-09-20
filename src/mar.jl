@@ -113,9 +113,10 @@ function projection(phi::AbstractMatrix{T}, dims::Tuple) where T
     return (; A, B, phi_est)
 end
 
-function projection(phi::AbstractArray{T,3}, dims::Tuple) where T
+function projection(phi::Vector{<:AbstractMatrix{T}}, dims::Tuple) where T
     n1, n2 = dims
-    n, m, k = size(phi)
+    n, m = size(phi[1])
+    k = length(phi)
     @assert n == n1 * n2 "Size mismatch: n1 * n2 ≠ size(phi,1)"
     @assert n == m "Each slice must be square (n×n)"
 
@@ -124,7 +125,7 @@ function projection(phi::AbstractArray{T,3}, dims::Tuple) where T
     Phis = Vector{Array{T,2}}(undef, k)
 
     for i in 1:k
-        res = projection(phi[:, :, i], dims)  # call your original function
+        res = projection(phi[i], dims)
         As[i]   = res.A
         Bs[i]   = res.B
         Phis[i] = res.phi_est

@@ -37,7 +37,7 @@ function MAR(data::AbstractArray;
 end
 
 function fit!(model::MAR)
-    ols_est = ols(model.resp, model.pred; model.p)
+    ols_est = estimate_ols(model.resp, model.pred; model.p)
     proj_est = projection(ols_est, model.dims)
 
     if model.method == :proj

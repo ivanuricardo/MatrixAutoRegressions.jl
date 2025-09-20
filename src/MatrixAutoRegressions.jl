@@ -23,10 +23,11 @@ export vectorize
 export matricize
 export make_companion
 export isstable
-export ols
+export estimate_ols
 export require_fitted
 export normalize_slices
 export mar_eigvals
+export estimate_var
 
 include("./simulation.jl")
 export generate_mar_coefs

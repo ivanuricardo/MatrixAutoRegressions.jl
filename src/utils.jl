@@ -99,27 +99,30 @@ function isstable(A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix}; maxe
     end
 end
 
-function ols(resp::AbstractArray, pred::AbstractArray)
+function estimate_ols(resp::AbstractArray, pred::AbstractArray)
     vec_resp = vectorize(resp)
     vec_pred = vectorize(pred)
 
     return vec_resp * vec_pred' / (vec_pred * vec_pred')
 end
 
-function estimate_var(Y::Matrix{Float64}, p::Int)
+function estimate_var(data::AbstractArray; p::Int=1)
+    Y = vectorize(data)
     N, obs = size(Y)
-    obs_eff = obs - p
 
-    pred = zeros(N*p, obs_eff)
-    for t in 1:obs_eff
-        pred[:, t] = vec(reverse(Y[:, t:(t+p-1)]))
+    pred = zeros(N*p, obs-p)
+    for t in 1:(obs-p)
+        pred[:, t] = vec(Y[:, t+p-1:-1:t])
     end
 
     resp = Y[:, p+1:end]
-    A_hat = resp * pred' / (pred * pred')
+    A_hat = resp * pred' * inv(pred * pred')
+    coeffs = Vector{Matrix{Float64}}(undef, p)
+    for i in 1:p
+        coeffs[i] = A_hat[:, (N*(i-1)+1):(N*i)]
+    end
 
-    A = reshape(A_hat, N, N, p)
-    return A
+    return coeffs
 end
 
 function is_fitted(model::MAR)

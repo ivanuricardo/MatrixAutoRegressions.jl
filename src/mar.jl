@@ -113,6 +113,26 @@ function projection(phi::AbstractMatrix{T}, dims::Tuple) where T
     return (; A, B, phi_est)
 end
 
+function projection(phi::AbstractArray{T,3}, dims::Tuple) where T
+    n1, n2 = dims
+    n, m, k = size(phi)
+    @assert n == n1 * n2 "Size mismatch: n1 * n2 ≠ size(phi,1)"
+    @assert n == m "Each slice must be square (n×n)"
+
+    As  = Vector{Array{T,2}}(undef, k)
+    Bs  = Vector{Array{T,2}}(undef, k)
+    Phis = Vector{Array{T,2}}(undef, k)
+
+    for i in 1:k
+        res = projection(phi[:, :, i], dims)  # call your original function
+        As[i]   = res.A
+        Bs[i]   = res.B
+        Phis[i] = res.phi_est
+    end
+
+    return (; A = As, B = Bs, phi_est = Phis)
+end
+
 function update_B(resp::AbstractArray{T},
                   pred::AbstractArray{T},
                   A::AbstractVecOrMat{T};
@@ -206,14 +226,14 @@ Alternating Least Squares estimation for the MAR(1) model:
 # Returns
 - `(A, B)`: estimated matrices.
 """
-function als(A_init::AbstractVecOrMat{T},
-    B_init::AbstractVecOrMat{T},
-    resp::AbstractArray{T},
-    pred::AbstractArray{T};
+function als(A_init::AbstractArray{T},
+    B_init::AbstractArray{T},
+    data::AbstractArray{T},
     maxiter::Int=100,
     tol::Real=1e-6,
     p::Int=1
     ) where T
+
     A = copy(A_init)
     B = copy(B_init)
     n1, n2 = size(A, 1), size(B, 1)
@@ -309,30 +329,20 @@ function mle(A_init::AbstractVecOrMat{T},
     end
 end
 
-function ls_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T
-    obs = size(data, 3)
-    resp = data[:, :, 2:end]
-    pred = data[:, :, 1:end-1]
+function ls_objective(data::AbstractArray{T}, A::AbstractArray{T}, B::AbstractArray{T}; p=1) where T
+    n1, n2, obs = size(data)
 
     ssr = 0
-    for i in 1:(obs-p)
-        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+    for i in (p+1):obs
+        pred = zeros(n1, n2)
+        for j in 1:p
+            pred .+= A[:, :, j] * data[:, :, i-j] * B[:, :, j]'
+        end
+        residual = data[:, :, i] - pred
         ssr += sum(abs2, residual)
     end
     
     return ssr
-end
-
-function ls_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}; p=1) where T
-    obs = size(resp, 3)
-    ssr = 0
-    for i in 1:(obs-p)
-        residual = resp[:, :, i] - A * pred[:, :, i] * B'
-        ssr += sum(abs2, residual)
-    end
-    
-    return ssr
-    
 end
 
 function ls_objective(model::MAR)
@@ -340,38 +350,25 @@ function ls_objective(model::MAR)
     return ls_objective(model.resp, model.pred, model.A, model.B; model.p)
 end
 
-function mle_objective(data::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
-    resp = data[:, :, 2:end]
-    pred = data[:, :, 1:end-1]
-    n1, n2, obs = size(resp)
+function mle_objective(data::AbstractArray{T}, A::AbstractArray{T}, B::AbstractArray{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
+    n1, n2, obs = size(data)
 
     ssr = 0
     fac1 = _update_fac(Sigma1)
     fac2 = _update_fac(Sigma2)
 
-    for i in 1:(obs-p)
-        residual = resp[:, :, i] - A * pred[:, :, i] * B'
+    for i in (p+1):obs
+        pred = zeros(n1, n2)
+        for j in 1:p
+            pred .+= A[:, :, j] * data[:, :, i-j] * B[:, :, j]'
+        end
+
+        residual = data[:, :, i] - pred
         ssr += tr((fac1 \ residual) / fac2 * residual')
     end
-    first_cov = -n2 * obs * logdet(fac1)
-    second_cov = -n1 * obs * logdet(fac2)
-
-    return first_cov + second_cov - ssr
-    
-end
-
-function mle_objective(resp::AbstractArray{T}, pred::AbstractArray{T}, A::AbstractMatrix{T}, B::AbstractMatrix{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
-    n1, n2, obs = size(resp)
-    ssr = 0
-    fac1 = _update_fac(Sigma1)
-    fac2 = _update_fac(Sigma2)
-
-    for i in 1:(obs-p)
-        residual = resp[:, :, i] - A * pred[:, :, i] * B'
-        ssr += tr((fac1 \ residual) / fac2 * residual')
-    end
-    first_cov = -n2 * obs * logdet(fac1)
-    second_cov = -n1 * obs * logdet(fac2)
+    eff_obs = obs - p
+    first_cov = -n2 * eff_obs * logdet(fac1)
+    second_cov = -n1 * eff_obs * logdet(fac2)
 
     return first_cov + second_cov - ssr
     

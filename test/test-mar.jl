@@ -1,21 +1,37 @@
 @testset "Nearest Kronecker Product" begin
     n1 = 4
     n2 = 3
-    A = randn(n1,n1)
-    B = randn(n2,n2)
+    A1 = randn(n1,n1)
+    B1 = randn(n2,n2)
 
-    phi = kron(B, A)
+    phi1 = kron(B1, A1)
 
-    est = projection(phi, (n1, n2))
-    true_a = A / norm(A)
-    @test isapprox(true_a, est.A; atol=1e-8) || isapprox(true_a, -est.A; atol=1e-8)
+    est = projection(phi1, (n1, n2))
+    true_a1 = A1 / norm(A1)
+    @test isapprox(true_a1, est.A; atol=1e-8) || isapprox(true_a1, -est.A; atol=1e-8)
 
-    true_b = B * norm(A)
-    @test isapprox(true_b, est.B; atol=1e-8) || isapprox(true_b, -est.B; atol=1e-8)
+    true_b1 = B1 * norm(A1)
+    @test isapprox(true_b1, est.B; atol=1e-8) || isapprox(true_b1, -est.B; atol=1e-8)
 
-    true_product = kron(B, A)
+    true_product = kron(B1, A1)
     est_product = kron(est.B, est.A)
     @test isapprox(est_product, true_product, atol=1e-08)
+
+    # Adding another coef as a lag
+    A2 = randn(n1, n1)
+    B2 = randn(n2, n2)
+
+    phi2 = kron(B2, A2)
+    phi = cat(phi1, phi2; dims = 3)
+
+    est2 = projection(phi, (n1, n2))
+    true_a2 = A2 / norm(A2)
+    @test isapprox(true_a1, est2.A[1]; atol=1e-8) || isapprox(true_a1, -est2.A[1]; atol=1e-8)
+    @test isapprox(true_a2, est2.A[2]; atol=1e-8) || isapprox(true_a2, -est2.A[2]; atol=1e-8)
+
+    true_b2 = B2 * norm(A2)
+    @test isapprox(true_b1, est2.B[1]; atol=1e-8) || isapprox(true_b1, -est2.B[1]; atol=1e-8)
+    @test isapprox(true_b2, est2.B[2]; atol=1e-8) || isapprox(true_b2, -est2.B[2]; atol=1e-8)
 
 end
 
@@ -49,11 +65,9 @@ end
     matdata = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
-    resp = matdata[:, :, 2:end]
-    pred = matdata[:, :, 1:end-1]
-    obj_true = ls_objective(resp, pred, A_init, B_init)
+    obj_true = ls_objective(dgp.Y, A_init, B_init)
 
-    results = als(A_init, B_init, resp, pred)
+    results = als(A_init, B_init, matdata)
 
     # Should be monotonically decreasing
     @test all(diff(results.track_obj) .<= 0)

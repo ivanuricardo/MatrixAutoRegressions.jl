@@ -1,15 +1,14 @@
 
 mutable struct MAR <: AbstractARModel
-    A::Union{Nothing, Matrix{Float64}}
-    B::Union{Nothing, Matrix{Float64}}
+    A::Union{Nothing, Vector{<:AbstractMatrix}}
+    B::Union{Nothing, Vector{<:AbstractMatrix}}
     p::Int
     Sigma1::Union{Nothing, Matrix{Float64}}
     Sigma2::Union{Nothing, Matrix{Float64}}
     dims::Tuple{Int,Int}
     obs::Int
     method::Symbol
-    resp::AbstractArray
-    pred::AbstractArray
+    data::AbstractArray
     maxiter::Int
     tol::Float64
     iters::Union{Nothing, Int}
@@ -18,26 +17,24 @@ end
 function MAR(data::AbstractArray;
     p::Int=1,
     method::Symbol=:ls,
-    A::Union{Nothing, AbstractVecOrMat}=nothing,
-    B::Union{Nothing, AbstractVecOrMat}=nothing,
+    A::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
+    B::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
     maxiter::Int=100,
     tol::Real=1e-6,
     )
 
     # Demean over time
     demeaned_data = data .- mean(data, dims=3)
-    resp = demeaned_data[:, :, 2:end]
-    pred = demeaned_data[:, :, 1:end-1]
 
     dims = size(data)[1:2]
     obs = size(data, 3)
     iters = nothing
 
-    return MAR(A, B, p, nothing, nothing, dims, obs, method, resp, pred, maxiter, tol, iters)
+    return MAR(A, B, p, nothing, nothing, dims, obs, method, demeaned_data, maxiter, tol, iters)
 end
 
 function fit!(model::MAR)
-    ols_est = estimate_ols(model.resp, model.pred; model.p)
+    ols_est = estimate_var(model.data; model.p)
     proj_est = projection(ols_est, model.dims)
 
     if model.method == :proj
@@ -330,14 +327,14 @@ function mle(A_init::AbstractVecOrMat{T},
     end
 end
 
-function ls_objective(data::AbstractArray{T}, A::AbstractArray{T}, B::AbstractArray{T}; p=1) where T
+function ls_objective(data::AbstractArray{T}, A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix}; p=1) where T
     n1, n2, obs = size(data)
 
     ssr = 0
     for i in (p+1):obs
         pred = zeros(n1, n2)
         for j in 1:p
-            pred .+= A[:, :, j] * data[:, :, i-j] * B[:, :, j]'
+            pred .+= A[j] * data[:, :, i-j] * B[j]'
         end
         residual = data[:, :, i] - pred
         ssr += sum(abs2, residual)

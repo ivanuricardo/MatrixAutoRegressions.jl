@@ -59,6 +59,21 @@ end
 
 end
 
+@testset "proj algorithm behavior" begin
+    obs = 10000
+    dgp = simulate_mar(obs)
+    matdata = dgp.Y
+    A_init = dgp.A
+    B_init = dgp.B
+
+    model = MAR(matdata; method = :proj)
+    fit!(model)
+
+    @test norm(model.A[1] - A_init[1]) < 0.1
+    @test norm(model.B[1] - B_init[1]) < 0.1
+
+end
+
 @testset "als algorithm behavior" begin
     obs = 100
     dgp = simulate_mar(obs)

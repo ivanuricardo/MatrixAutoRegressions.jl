@@ -91,10 +91,11 @@ Alternating Least Squares estimation for the MAR(1) model:
 # Returns
 - `(A, B)`: estimated matrices.
 """
-function als(A::AbstractVecOrMat,
-    B::AbstractVecOrMat{T},
+function als(
     resp::AbstractArray{T},
-    pred::AbstractArray{T};
+    pred::AbstractArray{T},
+    A::AbstractVecOrMat,
+    B::AbstractVecOrMat{T};
     maxiter::Int=100,
     tol::Real=1e-6,
     ) where T
@@ -131,9 +132,10 @@ function als(A::AbstractVecOrMat,
     end
 end
 
-function als(A::Vector{<:AbstractMatrix},
-    B::Vector{<:AbstractMatrix},
-    data::AbstractArray{T};
+function als(
+    data::AbstractArray{T},
+    A::Vector{<:AbstractMatrix},
+    B::Vector{<:AbstractMatrix};
     maxiter::Int=100,
     tol::Real=1e-6,
     p::Int=1,
@@ -153,7 +155,7 @@ function als(A::Vector{<:AbstractMatrix},
         for j in 1:p
             resp = residual_given_idx(data, A, B, j)
             pred = data[:, :, (p+1-j):(end-j)]
-            results = als(A[j], B[j], resp, pred; maxiter, tol)
+            results = als(resp, pred, A[j], B[j]; maxiter, tol)
             A[j] = results.A
             B[j] = results.B
         end

@@ -103,7 +103,7 @@ end
     B_init = dgp.B
     resp = matdata[:, :, 2:end]
     pred = matdata[:, :, 1:end-1]
-    obj_true = ls_objective(resp, pred, A_init, B_init)
+    obj_true = ls_objective(resp, pred, A_init[1], B_init[1])
 
     results = als(A_init[1], B_init[1], resp, pred)
 

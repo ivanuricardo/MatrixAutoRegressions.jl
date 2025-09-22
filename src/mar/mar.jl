@@ -46,8 +46,7 @@ function fit!(model::MAR)
         A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
         B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
 
-        results = als(A0, B0, model.resp, model.pred;
-            maxiter=model.maxiter, tol=model.tol)
+        results = als(model.data, A0, B0; maxiter=model.maxiter, tol=model.tol, p=model.p)
 
         model.A = results.A
         model.B = results.B
@@ -104,10 +103,10 @@ end
 
 function ls_objective(model::MAR)
     require_fitted(model)
-    return ls_objective(model.resp, model.pred, model.A, model.B; model.p)
+    return ls_objective(model.data, model.A, model.B; model.p)
 end
 
-function mle_objective(data::AbstractArray{T}, A::AbstractArray{T}, B::AbstractArray{T}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
+function mle_objective(data::AbstractArray{T}, A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
     n1, n2, obs = size(data)
 
     ssr = 0
@@ -117,7 +116,7 @@ function mle_objective(data::AbstractArray{T}, A::AbstractArray{T}, B::AbstractA
     for i in (p+1):obs
         pred = zeros(n1, n2)
         for j in 1:p
-            pred .+= A[:, :, j] * data[:, :, i-j] * B[:, :, j]'
+            pred .+= A[j] * data[:, :, i-j] * B[j]'
         end
 
         residual = data[:, :, i] - pred
@@ -137,6 +136,6 @@ function mle_objective(model::MAR)
         model.Sigma1 = I(model.dims[1])
         model.Sigma2 = I(model.dims[2])
     end
-    return mle_objective(model.resp, model.pred, model.A, model.B, model.Sigma1, model.Sigma2; model.p)
+    return mle_objective(model.data, model.A, model.B, model.Sigma1, model.Sigma2; model.p)
 end
 

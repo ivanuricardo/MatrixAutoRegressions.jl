@@ -10,13 +10,23 @@ include("./types.jl")
 include("./mar.jl")
 export MAR
 export fit!
-export projection
-export als
-export mle
 export ls_objective
 export mle_objective
+
+include("./mar_methods/als.jl")
+export _update_fac
 export update_A
 export update_B
+export residual_given_idx
+export als
+
+include("./mar_methods/mle.jl")
+export update_Sigma1
+export update_Sigma2
+export mle
+
+include("./mar_methods/proj.jl")
+export projection
 
 include("./utils.jl")
 export vectorize

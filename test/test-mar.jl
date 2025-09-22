@@ -72,6 +72,22 @@ end
     @test norm(model.A[1] - A_init[1]) < 0.1
     @test norm(model.B[1] - B_init[1]) < 0.1
 
+    dgp2 = simulate_mar(obs; p=2)
+    matdata2 = dgp2.Y
+    A2 = dgp2.A
+    B2 = dgp2.B
+
+    model2 = MAR(matdata2; method = :proj, p = 2)
+    fit!(model2)
+
+    kron1 = kron(B2[1], A2[1])
+    est_kron1 = kron(model2.B[1], model2.A[1])
+    @test norm(kron1 - est_kron1) < 0.1
+
+    kron2 = kron(B2[2], A2[2])
+    est_kron2 = kron(model2.B[2], model2.A[2])
+    @test norm(kron2 - est_kron2) < 0.1
+
 end
 
 @testset "als algorithm behavior" begin
@@ -82,12 +98,28 @@ end
     B_init = dgp.B
     obj_true = ls_objective(dgp.Y, A_init, B_init)
 
-    results = als(A_init, B_init, matdata)
+    resp = matdata[:, :, 2:end]
+    pred = matdata[:, :, 1:end]
+    results = als(A_init[1], B_init[1], resp, pred)
 
     # Should be monotonically decreasing
     @test all(diff(results.track_obj) .<= 0)
     @test isapprox(norm(results.A), 1)
+    @test norm(results.A - A_init[1]) < 0.1
+    obj_est = ls_objective(dgp.Y, [results.A], [results.B])
+    @test obj_est < obj_true
 
+end
+
+@testset "als with multiple lags" begin
+    obs = 100
+    dgp = simulate_mar(obs)
+    matdata = dgp.Y
+    A_init = dgp.A
+    B_init = dgp.B
+    obj_true = ls_objective(dgp.Y, A_init, B_init)
+
+    results = als(A_init, B_init, data)
 end
 
 @testset "als algorithm correctness" begin

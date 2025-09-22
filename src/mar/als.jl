@@ -40,33 +40,36 @@ function update_B(resp::AbstractArray{T},
     return B_num / B_den
 end
 
-function residual_given_idx(resp::AbstractArray{T}, 
-    pred::AbstractArray{T}, 
+function residual_given_idx(
+    data::AbstractArray{T}, 
     A::Vector{<:AbstractMatrix}, 
     B::Vector{<:AbstractMatrix},
     given_idx::Int,
-    ) where T
+) where {T}
+
     p = length(A)
     @assert length(B) == p "length(A) and length(B) must match"
-    @assert length(pred) == p "pred must be a vector of length p"
     @assert 1 <= given_idx <= p "given_idx out of bounds"
 
-    m, n, T_eff = size(resp)
-    R = copy(resp)
+    m, n, obs = size(data)
+    obs_eff = obs - p
+
+    resp = data[:, :, (p+1):end]
+    residuals = copy(resp)
 
     @inbounds for i in 1:p
         if i == given_idx
             continue
         end
-        Ai = A[i]
-        Bi = B[i]
-        Pi = pred[i]
-        for t in 1:T_eff
-            R[:, :, t] .-= Ai * Pi[:, :, t] * Bi'
+        Ai, Bi = A[i], B[i]
+        pred = data[:, :, (p+1-i):(end-i)]
+
+        @inbounds for t in 1:obs_eff
+            residuals[:,:,t] .-= Ai * pred[:,:,t] * Bi'
         end
     end
 
-    return R
+    return residuals
 end
 
 """
@@ -148,6 +151,10 @@ function als(A::Vector{<:AbstractMatrix},
     for i in 1:maxiter
 
         for j in 1:p
+
+            resp = residual_given_idx(data, A_init, B_init, j)
+            pred = data[:, :, j:end-j]
+
         end
 
     end

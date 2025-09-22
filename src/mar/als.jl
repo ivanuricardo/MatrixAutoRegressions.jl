@@ -108,8 +108,6 @@ function als(A::AbstractVecOrMat,
     num_iter = 0
     for i in 1:maxiter
         num_iter += 1
-        A_old = copy(A)
-        B_old = copy(B)
         obj_old = copy(obj)
         B = update_B(resp, pred, A)
         A = update_A(resp, pred, B)
@@ -141,20 +139,36 @@ function als(A::Vector{<:AbstractMatrix},
     p::Int=1,
     ) where T
 
-    n1, n2 = size(A, 1), size(B, 1)
-    obs = size(resp, 3)
-    obj = ls_objective(resp, pred, A, B)
+    n1, n2 = size(A[1], 1), size(B[1], 1)
+    obs = size(data, 3)
+    obj = ls_objective(data, A, B; p)
 
     track_obj = fill(NaN, maxiter)
 
     num_iter = 0
     for i in 1:maxiter
+        num_iter += 1
+        obj_old = copy(obj)
 
         for j in 1:p
+            resp = residual_given_idx(data, A, B, j)
+            pred = data[:, :, (p+1-j):(end-j)]
+            results = als(A[j], B[j], resp, pred; maxiter, tol)
+            A[j] = results.A
+            B[j] = results.B
+        end
 
-            resp = residual_given_idx(data, A_init, B_init, j)
-            pred = data[:, :, j:end-j]
+        obj = ls_objective(data, A, B; p)
+        track_obj[i] = abs(obj - obj_old)
 
+        if track_obj[i] < tol
+            track_obj = track_obj[.!isnan.(track_obj)]
+            return (; A, B, track_obj, obj, num_iter)
+        end
+
+        if i == maxiter
+            @warn "Reached maximum number of iterations"
+            return (; A, B, track_obj, obj, num_iter)
         end
 
     end

@@ -69,7 +69,7 @@ function simulate_mar(
     total_obs = obs + burnin
 
     Y = Array{Float64, 3}(undef, n1, n2, total_obs)
-    Y[:, :, 1] .= 0.0
+    Y[:, :, 1:p] .= 0.0
 
     matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
     matrix_errs = rand(matrix_normal, total_obs)

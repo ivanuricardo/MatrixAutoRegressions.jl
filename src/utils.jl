@@ -153,8 +153,8 @@ end
 function Base.show(io::IO, model::MAR)
     print(io, "MAR model (p=$(model.p), method=$(model.method))\n")
     print(io, "dims=$(model.dims), obs=$(model.obs)\n")
-    print(io, "A=$(model.A === nothing ? "unset" : size(model.A)) ")
-    print(io, "B=$(model.B === nothing ? "unset" : size(model.B)) ")
+    print(io, "A=$(model.A === nothing ? "unset" : size(model.A[1])) ")
+    print(io, "B=$(model.B === nothing ? "unset" : size(model.B[1])) ")
     if model.Sigma1 !== nothing && model.Sigma2 !== nothing
         print(io, "Σ₁=$(size(model.Sigma1)), Σ₂=$(size(model.Sigma2))")
     end

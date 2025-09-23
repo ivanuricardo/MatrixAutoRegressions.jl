@@ -1,7 +1,4 @@
 
-_update_fac(S::UniformScaling) = S
-_update_fac(S::AbstractMatrix) = factorize(S)
-
 function update_A(resp::AbstractArray{T},
                   pred::AbstractArray{T},
                   B::AbstractVecOrMat{T};
@@ -11,11 +8,9 @@ function update_A(resp::AbstractArray{T},
     A_den = zeros(T, n1, n1)
     obs = size(resp, 3)
 
-    fac = _update_fac(Sigma2)
-
     for t in 1:obs
-        A_num += (resp[:, :, t] / fac) * B * pred[:, :, t]'
-        A_den += (pred[:, :, t] * B' / fac) * B * pred[:, :, t]'
+        A_num += (resp[:, :, t] / Sigma2) * B * pred[:, :, t]'
+        A_den += (pred[:, :, t] * B' / Sigma2) * B * pred[:, :, t]'
     end
 
     return A_num / A_den
@@ -30,11 +25,9 @@ function update_B(resp::AbstractArray{T},
     B_den = zeros(T, n2, n2)
     obs = size(resp, 3)
 
-    fac = _update_fac(Sigma1)
-
     for t in 1:obs
-        B_num += (resp[:, :, t]' / fac) * A * pred[:, :, t]
-        B_den += (pred[:, :, t]' * A' / fac) * A * pred[:, :, t]
+        B_num += (resp[:, :, t]' / Sigma1) * A * pred[:, :, t]
+        B_den += (pred[:, :, t]' * A' / Sigma1) * A * pred[:, :, t]
     end
 
     return B_num / B_den
@@ -98,6 +91,8 @@ function als(
     B::AbstractVecOrMat{T};
     maxiter::Int=100,
     tol::Real=1e-6,
+    Sigma1=I,
+    Sigma2=I,
     ) where T
 
     n1, n2 = size(A, 1), size(B, 1)
@@ -110,8 +105,8 @@ function als(
     for i in 1:maxiter
         num_iter += 1
         obj_old = copy(obj)
-        B = update_B(resp, pred, A)
-        A = update_A(resp, pred, B)
+        B = update_B(resp, pred, A; Sigma1)
+        A = update_A(resp, pred, B; Sigma2)
 
         obj = ls_objective(resp, pred, A, B)
         norm_A = norm(A)
@@ -138,11 +133,12 @@ function als(
     B::Vector{<:AbstractMatrix};
     maxiter::Int=100,
     tol::Real=1e-6,
-    p::Int=1,
+    Sigma1=I,
+    Sigma2=I,
     ) where T
 
     n1, n2 = size(A[1], 1), size(B[1], 1)
-    obs = size(data, 3)
+    p = length(A)
     obj = ls_objective(data, A, B; p)
 
     track_obj = fill(NaN, maxiter)
@@ -155,7 +151,7 @@ function als(
         for j in 1:p
             resp = residual_given_idx(data, A, B, j)
             pred = data[:, :, (p+1-j):(end-j)]
-            results = als(resp, pred, A[j], B[j]; maxiter, tol)
+            results = als(resp, pred, A[j], B[j]; maxiter, tol, Sigma1, Sigma2)
             A[j] = results.A
             B[j] = results.B
         end

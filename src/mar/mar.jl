@@ -106,12 +106,18 @@ function ls_objective(model::MAR)
     return ls_objective(model.data, model.A, model.B; model.p)
 end
 
-function mle_objective(data::AbstractArray{T}, A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix}, Sigma1::AbstractMatrix{T}, Sigma2::AbstractMatrix{T}; p=1) where T
+function mle_objective(
+    data::AbstractArray{T},
+    A::Vector{<:AbstractMatrix},
+    B::Vector{<:AbstractMatrix},
+    Sigma1::AbstractMatrix,
+    Sigma2::AbstractMatrix,
+    ) where T
+
     n1, n2, obs = size(data)
+    p = length(A)
 
     ssr = 0
-    fac1 = _update_fac(Sigma1)
-    fac2 = _update_fac(Sigma2)
 
     for i in (p+1):obs
         pred = zeros(n1, n2)
@@ -120,11 +126,11 @@ function mle_objective(data::AbstractArray{T}, A::Vector{<:AbstractMatrix}, B::V
         end
 
         residual = data[:, :, i] - pred
-        ssr += tr((fac1 \ residual) / fac2 * residual')
+        ssr += tr((Sigma1 \ residual) / Sigma2 * residual')
     end
     eff_obs = obs - p
-    first_cov = -n2 * eff_obs * logdet(fac1)
-    second_cov = -n1 * eff_obs * logdet(fac2)
+    first_cov = -n2 * eff_obs * logdet(Sigma1)
+    second_cov = -n1 * eff_obs * logdet(Sigma2)
 
     return first_cov + second_cov - ssr
 end

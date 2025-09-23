@@ -27,16 +27,14 @@ end
 @testset "mle algorithm behavior" begin
     obs = 100
     dgp = simulate_mar(obs)
-    matdata = dgp.Y
+    data = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
     Sigma1_init = dgp.Sigma1
     Sigma2_init = dgp.Sigma2
-    resp = matdata[:, :, 2:end]
-    pred = matdata[:, :, 1:end-1]
-    obj_true = mle_objective(resp, pred, A_init, B_init, Sigma1_init, Sigma2_init)
+    obj_true = mle_objective(data, A_init, B_init, Sigma1_init, Sigma2_init)
 
-    results = mle(A_init, B_init, Sigma1_init, Sigma2_init, resp, pred)
+    results = mle(data, A_init, B_init, Sigma1_init, Sigma2_init)
 
     # Should be monotonically decreasing
     @test all(diff(results.track_obj) .<= 0)
@@ -47,22 +45,28 @@ end
 @testset "mle algorithm correctness" begin
     obs = 1000
     dgp = simulate_mar(obs; snr = 1000)
-    matdata = dgp.Y
-    A_init = dgp.A
-    B_init = dgp.B
+    data = dgp.Y
+    A_init = [randn(3,3)]
+    B_init = [randn(4,4)]
+    #=Sigma1_init = I(3)=#
+    #=Sigma2_init = I(4)=#
     Sigma1_init = dgp.Sigma1
     Sigma2_init = dgp.Sigma2
-    resp = matdata[:, :, 2:end]
-    pred = matdata[:, :, 1:end-1]
-    obj_true = mle_objective(resp, pred, A_init, B_init, Sigma1_init, Sigma2_init)
+    obj_true = mle_objective(data, A_init, B_init, Sigma1_init, Sigma2_init)
 
-    results = mle(A_init, B_init, Sigma1_init, Sigma2_init, resp, pred)
+    results = mle(data, A_init, B_init, Sigma1_init, Sigma2_init)
 
     @test norm(results.A - A_init) < 0.1
     @test norm(results.B - B_init) < 0.1
 
-    kron_est = kron(results.B, results.A)
-    kron_true = kron(B_init, A_init)
+    kron_est = kron(results.B[1], results.A[1])
+    kron_true = kron(B_init[1], A_init[1])
     @test norm(kron_est - kron_true) < 0.1
+
+    @test norm(results.Sigma1 - Sigma1_init) < 0.1
+    @test norm(results.Sigma2 - Sigma2_init) < 0.1
+
+    obj_est = mle_objective(data, results.A, results.B, results.Sigma1, results.Sigma2)
+    @test obj_true < obj_est
 
 end

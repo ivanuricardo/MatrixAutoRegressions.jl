@@ -10,6 +10,8 @@ include("./types.jl")
 include("./mar/mar.jl")
 export MAR
 export fit!
+export predict
+export train_test_split
 export ls_objective
 export mle_objective
 

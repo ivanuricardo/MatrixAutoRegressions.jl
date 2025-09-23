@@ -117,6 +117,32 @@ results = als(Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
 A_est, B_est = results.A, results.B
 ```
 
+### 6) Forecasting with a fitted MAR model
+
+You can generate multi-step-ahead forecasts after fitting a MAR model.
+Use `train_test_split` to hold out the last `h` observations for evaluation, then call `predict(model; h)`.
+
+```julia
+using MatrixAutoRegressions
+
+# simulate a MAR(2) with n1=3, n2=4 and 200 observations
+sim = simulate_mar(200; n1=3, n2=4, p=2, snr=1000)
+model = MAR(sim.Y, p=2)
+fit!(model)
+
+# split into training and test sets (last 5 observations are test)
+train_data, test_data = train_test_split(model; h=5)
+model.data = train_data
+
+# forecast the next 5 steps
+Yhat = predict(model; h=5)
+
+println("Forecast array size: ", size(Yhat))   # (3, 4, 5)
+println("Forecast error norm: ", norm(Yhat - test_data))
+```
+`Yhat` has shape `(n1, n2, h)` and contains the forecasted matrices.
+You can compare directly to the held-out test data, or use it for downstream analysis.
+
 ---
 
 ## Practical notes & tips

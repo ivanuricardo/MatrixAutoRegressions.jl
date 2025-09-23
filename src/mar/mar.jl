@@ -144,3 +144,43 @@ function mle_objective(model::MAR)
     return mle_objective(model.data, model.A, model.B, model.Sigma1, model.Sigma2)
 end
 
+function coef(model::MAR)
+    require_fitted(model)
+    A = model.A
+    B = model.B
+    return (;A, B)
+end
+
+function predict(model::MAR; h::Int=1)
+    require_fitted(model)
+
+    n1, n2 = model.dims
+    p = model.p
+    A, B = coef(model)
+
+    Yhist = model.data[:, :, end-p+1:end]
+
+    forecasts = Array{Float64,3}(undef, n1, n2, h)
+
+    for step in 1:h
+
+        # first step is initialized
+        Ypred = zeros(n1, n2)
+        for j in 1:p
+            Ypred .+= A[j] * Yhist[:, :, end-j+1] * B[j]'
+        end
+        forecasts[:, :, step] .= Ypred
+
+        # update history with predicted value
+        Yhist = cat(Yhist, reshape(Ypred, n1, n2, 1); dims=3)
+    end
+
+    return forecasts
+end
+
+function train_test_split(model::MAR; h::Int=1)
+    test_data = model.data[:, :, end-h+1:end]
+    train_data = model.data[:, :, 1:end-h]
+
+    return train_data, test_data
+end

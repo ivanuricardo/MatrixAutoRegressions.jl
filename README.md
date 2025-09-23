@@ -25,7 +25,7 @@ This README assumes the package is available as `MatrixAutoRegressions` (replace
 
 ```julia
 ] dev /path/to/repo
-using MatrixA
+using MatrixAutoRegressions
 ```
 
 ---

@@ -150,6 +150,32 @@ function normalize_slices(A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatri
     return A_normalized, B_normalized
 end
 
+function calculate_residuals(data::AbstractArray, A::Vector{<:AbstractMatrix}, B::AbstractMatrix)
+    p = length(A)
+
+    obs = size(data, 3)
+    obs_eff = obs - p
+
+    resp = data[:, :, (p+1):end]
+    residuals = copy(resp)
+
+    @inbounds for i in 1:p
+        Ai, Bi = A[i], B[i]
+        pred = data[:, :, (p+1-i):(end-i)]
+
+        @inbounds for t in 1:obs_eff
+            residuals[:, :, t] .-= Ai * pred[:, :, t] * Bi'
+        end
+    end
+
+    return residuals
+end
+
+function residuals(model::MAR)
+    require_fitted(model)
+    return calculate_residuals(model.data, model.A, model.B)
+end
+
 function Base.show(io::IO, model::MAR)
     print(io, "MAR model (p=$(model.p), method=$(model.method))\n")
     print(io, "dims=$(model.dims), obs=$(model.obs)\n")

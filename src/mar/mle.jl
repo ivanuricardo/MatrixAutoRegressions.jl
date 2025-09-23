@@ -1,38 +1,63 @@
 
-function update_Sigma1(resp::AbstractArray{T},
-    pred::AbstractArray{T},
-    A::AbstractVecOrMat{T},
-    B::AbstractVecOrMat{T},
-    Sigma2::AbstractMatrix{T}) where T
+function update_Sigma1(
+    data::AbstractArray{T}, 
+    A::Vector{<:AbstractMatrix{T}}, 
+    B::Vector{<:AbstractMatrix{T}}, 
+    Sigma2::AbstractMatrix{T}
+) where T
 
-    n1, n2, obs = size(resp)
+    p = length(A)
+    @assert length(B) == p "length(A) and length(B) must match"
+
+    n1, n2, obs = size(data)
+    obs_eff = obs - p
     Sigma1 = zeros(T, n1, n1)
+
     fac = _update_fac(Sigma2)
 
-    for t in 1:obs
-        residual = resp[:, :, t] - A * pred[:, :, t] * B'
+    @inbounds for t in 1:obs_eff
+        resp = data[:, :, t + p]
+
+        fit = zero(resp)
+        @inbounds for i in 1:p
+            fit .+= A[i] * data[:, :, t + p - i] * B[i]'
+        end
+
+        residual = resp - fit
         Sigma1 += (residual / fac) * residual'
     end
 
-    return Sigma1 / (n2 * obs)
+    return Sigma1 / (n2 * obs_eff)
 end
 
-function update_Sigma2(resp::AbstractArray{T},
-    pred::AbstractArray{T},
-    A::AbstractVecOrMat{T},
-    B::AbstractVecOrMat{T},
-    Sigma1::AbstractMatrix{T}) where T
-    
-    n1, n2, obs = size(resp)
+function update_Sigma2(
+    data::AbstractArray{T}, 
+    A::Vector{<:AbstractMatrix{T}}, 
+    B::Vector{<:AbstractMatrix{T}}, 
+    Sigma1::AbstractMatrix{T}
+) where T
+
+    p = length(A)
+
+    n1, n2, obs = size(data)
+    obs_eff = obs - p
     Sigma2 = zeros(T, n2, n2)
+
     fac = _update_fac(Sigma1)
 
-    for t in 1:obs
-        residual = resp[:, :, t] - A * pred[:, :, t] * B'
+    @inbounds for t in 1:obs_eff
+        resp = data[:, :, t + p]
+
+        fit = zero(resp)
+        @inbounds for i in 1:p
+            fit .+= A[i] * data[:, :, t + p - i] * B[i]'
+        end
+
+        residual = resp - fit
         Sigma2 += (residual' / fac) * residual
     end
 
-    return Sigma2 / (n1 * obs)
+    return Sigma2 / (n1 * obs_eff)
 end
 
 function mle(A_init::AbstractVecOrMat{T},
@@ -64,8 +89,8 @@ function mle(A_init::AbstractVecOrMat{T},
         Sigma2_old = copy(Sigma2)
         obj_old = copy(obj)
 
-        B = update_B(resp, pred, A)
-        A = update_A(resp, pred, B)
+        B = update_B(resp, pred, A; Sigma1)
+        A = update_A(resp, pred, B; Sigma2)
         Sigma1 = update_Sigma1(resp, pred, A, B, Sigma2)
         Sigma2 = update_Sigma2(resp, pred, A, B, Sigma1)
 

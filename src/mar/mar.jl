@@ -127,7 +127,6 @@ function mle_objective(data::AbstractArray{T}, A::Vector{<:AbstractMatrix}, B::V
     second_cov = -n1 * eff_obs * logdet(fac2)
 
     return first_cov + second_cov - ssr
-    
 end
 
 function mle_objective(model::MAR)

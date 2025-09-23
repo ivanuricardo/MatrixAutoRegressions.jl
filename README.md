@@ -37,7 +37,7 @@ All examples below are self-contained and runnable in the REPL or a script.
 ### 1) Simulate a MAR(1) and fit with ALS (least squares)
 
 ```julia
-using MatrixAutoRegressions
+using MatrixAutoRegressions, LinearAlgebra
 
 # simulate a MAR(1) with n1=3, n2=4 and 300 observations
 res = simulate_mar(300; n1=3, n2=4, p=1)
@@ -110,10 +110,12 @@ using MatrixAutoRegressions
 
 coefs = generate_mar_coefs(3, 4; p=1)
 println("stability eigenvalues: ", coefs.sorted_eigs)
-println("isstable? ", isstable(A_gen, B_gen))
+println("isstable? ", isstable(coefs.A, coefs.B))
+
+dgp = simulate_mar(300; n1=3, n2=4, p=1, A=coefs.A, B=coefs.B)
 
 # Suppose A0 and B0 are initial guesses (vectors of matrices)
-results = als(Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
+results = als(dgp.Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
 A_est, B_est = results.A, results.B
 ```
 
@@ -123,7 +125,7 @@ You can generate multi-step-ahead forecasts after fitting a MAR model.
 Use `train_test_split` to hold out the last `h` observations for evaluation, then call `predict(model; h)`.
 
 ```julia
-using MatrixAutoRegressions
+using MatrixAutoRegressions, LinearAlgebra
 
 # simulate a MAR(2) with n1=3, n2=4 and 200 observations
 sim = simulate_mar(200; n1=3, n2=4, p=2, snr=1000)

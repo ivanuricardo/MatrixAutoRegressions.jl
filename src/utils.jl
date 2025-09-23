@@ -150,7 +150,7 @@ function normalize_slices(A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatri
     return A_normalized, B_normalized
 end
 
-function calculate_residuals(data::AbstractArray, A::Vector{<:AbstractMatrix}, B::AbstractMatrix)
+function calculate_residuals(data::AbstractArray, A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix})
     p = length(A)
 
     obs = size(data, 3)

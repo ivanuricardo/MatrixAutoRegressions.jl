@@ -42,6 +42,7 @@ export normalize_slices
 export mar_eigvals
 export estimate_var
 export calculate_residuals
+export residuals
 
 include("./simulation.jl")
 export generate_mar_coefs

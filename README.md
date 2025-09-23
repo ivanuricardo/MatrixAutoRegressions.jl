@@ -4,114 +4,113 @@
 [![Build Status](https://github.com/IvanRicardo/MatrixAutoRegressions.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/IvanRicardo/MatrixAutoRegressions.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/IvanRicardo/MatrixAutoRegressions.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/IvanRicardo/MatrixAutoRegressions.jl)
 
+# MatrixAutoRegressions.jl
 
-# MAR.jl
-
-**Matrix Autoregressive (MAR) models in Julia**
-
-`MAR.jl` provides tools to estimate, simulate and work with first-order matrix autoregressive models (MAR(1)) where the transition matrix has a Kronecker-product structure: $\Phi = B \otimes A$. The package offers projection-based initialization, Alternating Least Squares (ALS) estimation, and a matrix-normal MLE routine that explicitly estimates row/column covariances.
+A lightweight Julia package for Matrix Autoregressive (MAR) models. This README introduces the main types and functions, shows quick examples for simulation and estimation (OLS projection, Alternating Least Squares — ALS, and Maximum Likelihood — MLE), and provides notes on stability and common utilities.
 
 ---
 
-## Features
+## Highlights
 
-* `MAR` model type for storing data, initial guesses and estimation results.
-* `fit!` with three methods:
-
-  * `:proj` — nearest Kronecker-product projection of an OLS estimate
-  * `:ls` — Alternating Least Squares for least-squares estimation
-  * `:mle` — iterative EM-like MLE for A, B, Σ₁, Σ₂
-* Utilities for simulation (`simulate_mar`), coefficient generation (`generate_mar_coefs`), vectorize/matricize helpers, and stability checks.
-* Functions to compute objective functions and to build VAR companion matrices.
+* `MAR` type: store MAR model configuration, parameters and data.
+* Estimation methods: `:proj` (nearest-Kronecker projection of OLS VAR), `:ls` (alternating least squares), `:mle` (iterative MLE alternating A/B and covariances).
+* Simulation: `simulate_mar` to generate synthetic MAR data.
+* Helpers: `projection`, `als`, `mle`, `generate_mar_coefs`, `isstable`, `vectorize`/`matricize`, `residuals`, and more.
 
 ---
 
 ## Installation
 
-This README assumes you will ship the code as a standard Julia package. From the Julia REPL:
+This README assumes the package is available as `MatrixAutoRegressions` (replace with your actual package name). In the REPL:
 
 ```julia
-import Pkg
-Pkg.develop(path="/path/to/MAR.jl") # or Pkg.add("MAR") when registered
+] dev /path/to/repo
+using MatrixA
 ```
-
-Add dependencies (if not already present in the package manifest): `Distributions`, `LinearAlgebra`, `StatsBase`, and any matrix-normal helper (e.g. `MatrixDistributions`).
 
 ---
 
-## Quick start
+## Quick examples
 
-Create a `MAR` object from a 3D array `Y` with dimensions `(n1, n2, T)` where `T` is time (observations):
+All examples below are self-contained and runnable in the REPL or a script.
+
+### 1) Simulate a MAR(1) and fit with ALS (least squares)
 
 ```julia
-using MAR
+using MatrixAutoRegressions
 
-# Y: n1 × n2 × T array
+# simulate a MAR(1) with n1=3, n2=4 and 300 observations
+res = simulate_mar(300; n1=3, n2=4, p=1)
+Y = res.Y         # data array: (n1, n2, obs)
+A_true = res.A    # true A slice(s)
+B_true = res.B    # true B slice(s)
+
+# build MAR model (method = :ls for alternating least squares)
 model = MAR(Y; p=1, method=:ls)
 fit!(model)
-println(model)
+
+println(model)            # brief summary printed by Base.show
+resid = residuals(model)  # residuals array
+
+# Compare to truth (example for p=1)
+println("||A_est - A_true|| = ", norm(model.A[1] - A_true[1]))
+println("||B_est - B_true|| = ", norm(model.B[1] - B_true[1]))
 ```
 
-### Methods
-
-* `method=:proj` — fast, closed-form projection of the OLS vectorized estimator onto a Kronecker product.
-* `method=:ls` — ALS iterative solver (returns normalized estimates with `A` having Frobenius norm 1).
-* `method=:mle` — estimates `A`, `B`, and covariance factors `Sigma1`, `Sigma2` via iterative updates.
-
-The `fit!` function mutates the `MAR` object and stores estimated `A`, `B`, and, for `:mle`, `Sigma1` and `Sigma2`. For `:ls` and `:mle`, the number of iterations used is stored in `model.iters`.
-
----
-
-## Example: simulate + estimate
+### 2) Fast projection (nearest Kronecker product) from OLS VAR
 
 ```julia
-# simulate
-res = simulate_mar(200; n1=3, n2=4)
-Y = res.Y
+# Use projection of OLS VAR directly
+model_proj = MAR(Y; p=1, method=:proj)
+fit!(model_proj)
 
-# build model and estimate
-model = MAR(Y; method=:proj)
-fit!(model)
+# model_proj.A and model_proj.B are the projection estimators
+println("Projected A size: ", size(model_proj.A[1]))
+```
 
-# use the projection estimates as initialization for ALS
-model_ls = MAR(Y; method=:ls)
-fit!(model_ls)
+### 3) Maximum likelihood estimation (iterative)
 
-# MLE (estimates Sigma1, Sigma2 too)
-model_mle = MAR(Y; method=:mle, maxiter=500, tol=1e-8)
+```julia
+# Start from projection initialization; set method=:mle to run the MLE routine
+model_mle = MAR(Y; p=1, method=:mle, maxiter=50, tol=1e-8)
 fit!(model_mle)
+
+# MLE returns fitted A/B and Sigma1/Sigma2
+println("iters used: ", model_mle.iters)
+println("Sigma1 size: ", size(model_mle.Sigma1))
+```
+
+### 4) Generate stable MAR coefficients
+
+```julia
+coefs = generate_mar_coefs(3, 4; p=1)
+A_gen, B_gen = coefs.A, coefs.B
+println("stability eigenvalues: ", coefs.sorted_eigs)
+println("isstable? ", isstable(A_gen, B_gen))
+```
+
+### 5) Use ALS directly if you already have starting slices
+
+```julia
+# Suppose A0 and B0 are initial guesses (vectors of matrices)
+results = als(Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
+A_est, B_est = results.A, results.B
 ```
 
 ---
 
-## Notes & Design decisions
+## Practical notes & tips
 
-* The package normalizes `A` to have Frobenius norm 1 and rescales `B` accordingly. This avoids scale indeterminacy in the Kronecker decomposition.
-* Many routines assume `p = 1`. Extending to `p > 1` requires changes to how predictors (`pred`) and responses (`resp`) are built and how the companion matrix is constructed.
-* `fit!` uses `projection` to initialize iterative methods when no `A`/`B` are provided.
-
----
-
-## Tests & examples
-
-Add unit tests for:
-
-* `projection` reproducing `A, B` when `phi = kron(B, A)`.
-* `als` convergence on simulated data.
-* `mle` recovering covariance matrices on simulated data.
-
-Provide short notebooks or REPL examples that walk through simulating, estimating (`:proj`, `:ls`, `:mle`), and plotting eigenvalue decay for the Kronecker coefficient.
+* **Normalization**: Internally A slices are normalized (Frobenius norm) and B adjusted accordingly to reduce scale identifiability.
+* **Initialization**: Good initialization speeds convergence. The package uses OLS + NKP projection as defaults.
+* **Stability**: Generated coefficient sets aim to be stable; always check `isstable(A, B)` before trusting long-run simulations.
+* **Convergence**: If ALS/MLE reaches `maxiter`, an `@warn` is emitted and the current estimates are returned. Tweak `maxiter` and `tol` if needed.
 
 ---
 
 ## Contributing
 
-Contributions welcome! Please open issues for bug reports and feature requests. For pull requests, follow these steps:
-
-1. Fork the repo and create a feature branch.
-2. Add tests for new functionality.
-3. Ensure `Pkg.test("MAR")` passes locally.
-4. Open a PR with a clear description of changes.
+PRs are welcome. Please open an issue if you spot numerical instability or surprising behavior.
 
 ---
 

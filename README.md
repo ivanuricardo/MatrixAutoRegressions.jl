@@ -60,6 +60,12 @@ println("||B_est - B_true|| = ", norm(model.B[1] - B_true[1]))
 ### 2) Fast projection (nearest Kronecker product) from OLS VAR
 
 ```julia
+using MatrixAutoRegressions
+res = simulate_mar(300; n1=3, n2=4, p=1)
+Y = res.Y
+A_true = res.A
+B_true = res.B
+
 # Use projection of OLS VAR directly
 model_proj = MAR(Y; p=1, method=:proj)
 fit!(model_proj)
@@ -71,6 +77,12 @@ println("Projected A size: ", size(model_proj.A[1]))
 ### 3) Maximum likelihood estimation (iterative)
 
 ```julia
+using MatrixAutoRegressions
+res = simulate_mar(300; n1=3, n2=4, p=1)
+Y = res.Y
+A_true = res.A
+B_true = res.B
+
 # Start from projection initialization; set method=:mle to run the MLE routine
 model_mle = MAR(Y; p=1, method=:mle, maxiter=50, tol=1e-8)
 fit!(model_mle)
@@ -83,6 +95,8 @@ println("Sigma1 size: ", size(model_mle.Sigma1))
 ### 4) Generate stable MAR coefficients
 
 ```julia
+using MatrixAutoRegressions
+
 coefs = generate_mar_coefs(3, 4; p=1)
 A_gen, B_gen = coefs.A, coefs.B
 println("stability eigenvalues: ", coefs.sorted_eigs)
@@ -92,6 +106,12 @@ println("isstable? ", isstable(A_gen, B_gen))
 ### 5) Use ALS directly if you already have starting slices
 
 ```julia
+using MatrixAutoRegressions
+
+coefs = generate_mar_coefs(3, 4; p=1)
+println("stability eigenvalues: ", coefs.sorted_eigs)
+println("isstable? ", isstable(A_gen, B_gen))
+
 # Suppose A0 and B0 are initial guesses (vectors of matrices)
 results = als(Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
 A_est, B_est = results.A, results.B

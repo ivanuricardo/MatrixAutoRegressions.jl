@@ -48,20 +48,18 @@ end
 @testset "als algorithm behavior" begin
     obs = 100
     dgp = simulate_mar(obs)
-    matdata = dgp.Y
+    data = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
     obj_true = ls_objective(dgp.Y, A_init, B_init)
 
-    resp = matdata[:, :, 2:end]
-    pred = matdata[:, :, 1:end]
-    results = als(A_init[1], B_init[1], resp, pred)
+    results = als(data, A_init, B_init)
 
     # Should be monotonically decreasing
     @test all(diff(results.track_obj) .<= 0)
     @test isapprox(norm(results.A), 1)
-    @test norm(results.A - A_init[1]) < 0.1
-    obj_est = ls_objective(dgp.Y, [results.A], [results.B])
+    @test norm(results.A[1] - A_init[1]) < 0.1
+    obj_est = ls_objective(dgp.Y, results.A, results.B)
     @test obj_est < obj_true
 
 end
@@ -77,9 +75,9 @@ end
     B = dgp.B
     A_init = [randn(3,3), randn(3,3)]
     B_init = [randn(4,4), randn(4,4)]
-    obj_true = ls_objective(dgp.Y, A, B; p=2)
+    obj_true = ls_objective(dgp.Y, A, B)
 
-    results = als(A_init, B_init, data; p=2)
+    results = als(data, A_init, B_init)
     @test norm(abs.(results.A[1]) - abs.(A[1])) < 0.1
     @test norm(abs.(results.B[1]) - abs.(B[1])) < 0.1
 
@@ -98,21 +96,31 @@ end
 @testset "als algorithm correctness" begin
     obs = 1000
     dgp = simulate_mar(obs; snr = 1000)
-    matdata = dgp.Y
+    data = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
-    resp = matdata[:, :, 2:end]
-    pred = matdata[:, :, 1:end-1]
-    obj_true = ls_objective(resp, pred, A_init[1], B_init[1])
+    obj_true = ls_objective(data, A_init, B_init)
 
-    results = als(A_init[1], B_init[1], resp, pred)
+    results = als(data, A_init, B_init)
 
-    @test norm(abs.(results.A) - abs.(A_init[1])) < 0.5
-    @test norm(abs.(results.B) - abs.(B_init[1])) < 0.5
+    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.5
+    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.5
 
-    kron_est = kron(results.B, results.A)
+    kron_est = kron(results.B[1], results.A[1])
     kron_true = kron(B_init[1], A_init[1])
-    @test norm(kron_est - kron_true) < 0.5
+    @test norm(kron_est - kron_true) < 0.1
+
+    A_init2 = [randn(3,3)]
+    B_init2 = [randn(4,4)]
+
+    results2 = als(data, A_init2, B_init2)
+
+    @test norm(abs.(results2.A[1]) - abs.(A_init[1])) < 0.1
+    @test norm(abs.(results2.B[1]) - abs.(B_init[1])) < 0.1
+
+    kron_est = kron(results2.B[1], results2.A[1])
+    kron_true = kron(B_init[1], A_init[1])
+    @test norm(kron_est - kron_true) < 0.1
 
 end
 
@@ -120,9 +128,11 @@ end
     obs = 1000
     dgp = simulate_mar(obs; snr=1000, p=2)
     matdata = dgp.Y
-    obj_true = ls_objective(matdata, dgp.A, dgp.B; p=2)
+    A_init = dgp.A
+    B_init = dgp.B
+    obj_true = ls_objective(matdata, dgp.A, dgp.B)
 
-    results = als(matdata, A_init, B_init; p=2)
+    results = als(matdata, A_init, B_init)
 
     @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.1
     @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.1
@@ -139,15 +149,13 @@ end
 
     A_init = [randn(3,3), randn(3,3)]
     B_init = [randn(4,4), randn(4,4)]
-    results_different_init = als(matdata, A_init, B_init; p=2)
-    A_init2 = results_different_init.A
-    B_init2 = results_different_init.B
+    results_different_init = als(matdata, A_init, B_init)
 
-    @test norm(abs.(results.A[1]) - abs.(A_init2[1])) < 0.1
-    @test norm(abs.(results.B[1]) - abs.(B_init2[1])) < 0.1
+    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.1
+    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.1
 
-    @test norm(abs.(results.A[2]) - abs.(A_init2[2])) < 0.1
-    @test norm(abs.(results.B[2]) - abs.(B_init2[2])) < 0.1
+    @test norm(abs.(results.A[2]) - abs.(A_init[2])) < 0.1
+    @test norm(abs.(results.B[2]) - abs.(B_init[2])) < 0.1
 
 end
 

@@ -46,7 +46,7 @@ function fit!(model::MAR)
         A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
         B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
 
-        results = als(model.data, A0, B0; maxiter=model.maxiter, tol=model.tol, p=model.p)
+        results = als(model.data, A0, B0; maxiter=model.maxiter, tol=model.tol)
 
         model.A = results.A
         model.B = results.B
@@ -56,10 +56,10 @@ function fit!(model::MAR)
 
         A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
         B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
-        Sigma1_init = Matrix{Float64}(I(model.dims[1]))
-        Sigma2_init = Matrix{Float64}(I(model.dims[2]))
+        Sigma1_init = I(model.dims[1])
+        Sigma2_init = I(model.dims[2])
 
-        results = mle(A0, B0, Sigma1_init, Sigma2_init, model.resp, model.pred;
+        results = mle(model.data, A0, B0, Sigma1_init, Sigma2_init;
             maxiter=model.maxiter, tol=model.tol)
 
         model.A = results.A
@@ -141,6 +141,6 @@ function mle_objective(model::MAR)
         model.Sigma1 = I(model.dims[1])
         model.Sigma2 = I(model.dims[2])
     end
-    return mle_objective(model.data, model.A, model.B, model.Sigma1, model.Sigma2; model.p)
+    return mle_objective(model.data, model.A, model.B, model.Sigma1, model.Sigma2)
 end
 

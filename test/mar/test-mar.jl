@@ -38,7 +38,7 @@ end
     fit!(model)
     train_data, test_data = train_test_split(model; h=5)
     @test size(test_data, 3) == 5
-    @test size(train_data, 3) == 195
+    @test size(train_data, 3) == 95
 
 end
 

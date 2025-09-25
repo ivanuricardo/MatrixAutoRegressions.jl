@@ -21,7 +21,7 @@ A lightweight Julia package for Matrix Autoregressive (MAR) models. This README 
 
 ## Installation
 
-This README assumes the package is available as `MatrixAutoRegressions` (replace with your actual package name). In the REPL:
+This README assumes the package is available as `MatrixAutoRegressions`. In the REPL:
 
 ```julia
 ] dev /path/to/repo

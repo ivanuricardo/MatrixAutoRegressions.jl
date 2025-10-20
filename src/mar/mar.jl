@@ -151,6 +151,7 @@ function coef(model::MAR)
     return (;A, B)
 end
 
+# This is only forecasting using forecasted values
 function predict(model::MAR; h::Int=1)
     require_fitted(model)
 

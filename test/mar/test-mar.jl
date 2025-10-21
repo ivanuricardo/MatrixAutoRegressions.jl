@@ -11,7 +11,7 @@
     @test model_proj.A isa Vector{<:AbstractMatrix}
     @test model_proj.B isa Vector{<:AbstractMatrix}
 
-    model_ls = MAR(matdata, method = :ls)
+    model_ls = MAR(matdata, method = :als)
     @test model_ls.A == nothing
     @test model_ls.B == nothing
     fit!(model_ls)

@@ -67,3 +67,15 @@ end
 
 end
 
+@testset "Permutation matrix" begin
+    n1 = 3
+    n2 = 4
+    phi = randn(12, 12)
+    dims = (n1,n2)
+
+    perm_mat = permutation_matrix(dims)
+    tensor_phi = reshape(phi, (n1, n2, n1, n2))
+    R = reshape(permutedims(tensor_phi, (1, 3, 2, 4)), n1 * n1, n2 * n2)
+
+    @test norm(vec(R) - perm_mat * vec(phi)) == 0
+end

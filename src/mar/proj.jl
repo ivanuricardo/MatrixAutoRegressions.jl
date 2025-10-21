@@ -51,3 +51,18 @@ function projection(phi::Vector{<:AbstractMatrix{T}}, dims::Tuple) where T
     return (; A = As, B = Bs, phi_est = Phis)
 end
 
+function permutation_matrix(dims; dense::Bool=false)
+    n1, n2 = dims
+    n = n1 * n2
+    N = n * n
+    idx = reshape(1:N, n, n)
+
+    tensor_idx = reshape(idx, (n1, n2, n1, n2))
+    permuted = permutedims(tensor_idx, (1, 3, 2, 4))
+    R_idx = reshape(permuted, n1 * n1, n2 * n2)
+    perm = vec(R_idx)
+    P_sparse = sparse(1:N, perm, ones(N), N, N)
+
+    return dense ? Matrix(P_sparse) : P_sparse
+end
+

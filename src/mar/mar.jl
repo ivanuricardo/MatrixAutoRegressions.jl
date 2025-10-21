@@ -16,7 +16,7 @@ end
 
 function MAR(data::AbstractArray;
     p::Int=1,
-    method::Symbol=:ls,
+    method::Symbol=:als,
     A::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
     B::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
     maxiter::Int=100,
@@ -41,7 +41,7 @@ function fit!(model::MAR)
         model.A = proj_est.A
         model.B = proj_est.B
 
-    elseif model.method == :ls
+    elseif model.method == :als
 
         A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
         B0 = isnothing(model.B) ? proj_est.B : copy(model.B)

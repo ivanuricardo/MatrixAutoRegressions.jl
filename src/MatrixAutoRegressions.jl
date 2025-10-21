@@ -5,6 +5,7 @@ using StatsBase
 using Statistics
 using Distributions
 using Random
+using SparseArrays
 
 include("./types.jl")
 include("./mar/mar.jl")
@@ -29,6 +30,7 @@ export mle
 
 include("./mar/proj.jl")
 export projection
+export permutation_matrix
 
 include("./utils.jl")
 export vectorize
@@ -47,5 +49,16 @@ export residuals
 include("./simulation.jl")
 export generate_mar_coefs
 export simulate_mar
+
+include("./mar/irfs.jl")
+export irf
+export local_projection
+
+include("./mar/inference.jl")
+export variance_als
+export variance_ols
+export variance_mle
+export variance_proj
+export asymptotic_variance
 
 end

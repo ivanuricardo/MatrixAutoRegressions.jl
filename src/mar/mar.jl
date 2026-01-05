@@ -1,72 +1,82 @@
 
-mutable struct MAR <: AbstractARModel
-    A::Union{Nothing, Vector{<:AbstractMatrix}}
-    B::Union{Nothing, Vector{<:AbstractMatrix}}
-    p::Int
-    Sigma1::Union{Nothing, Matrix{Float64}}
-    Sigma2::Union{Nothing, Matrix{Float64}}
-    dims::Tuple{Int,Int}
-    obs::Int
-    method::Symbol
-    data::AbstractArray
-    maxiter::Int
-    tol::Float64
-    iters::Union{Nothing, Int}
-end
-
 function MAR(data::AbstractArray;
     p::Int=1,
-    method::Symbol=:als,
-    A::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
-    B::Union{Nothing, Vector{<:AbstractMatrix}}=nothing,
+    method::Symbol=:mle,
+    A::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
+    B::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
+    C::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
     maxiter::Int=100,
     tol::Real=1e-6,
     )
 
-    # Demean over time
-    demeaned_data = data .- mean(data, dims=3)
-
     dims = size(data)[1:2]
-    obs = size(data, 3)
+    eff_obs = size(data, 3) - p
     iters = nothing
 
-    return MAR(A, B, p, nothing, nothing, dims, obs, method, demeaned_data, maxiter, tol, iters)
+    return MAR(A, B, C, p, nothing, nothing, nothing, dims, eff_obs, method, data, maxiter, tol, iters, nothing)
 end
 
 function fit!(model::MAR)
-    ols_est = estimate_var(model.data; model.p)
+
+    n1, n2 = model.dims
+
+    if model.p == 0
+        model.residuals = model.data .- mean(model.data, dims = 3)
+        flat_residuals = vectorize(model.residuals)
+        cov_est = (flat_residuals * flat_residuals') / model.obs
+        proj_est = projection(cov_est, (n1, n2))
+        model.Sigma = cov_est
+        model.Sigma1 = proj_est.A
+        model.Sigma2 = proj_est.B
+        return model
+    end
+
+    ols_est, cov_est = estimate_var(model.data; model.p)
     proj_est = projection(ols_est, model.dims)
+    proj_cov = projection([cov_est], model.dims)
 
     if model.method == :proj
         model.A = proj_est.A
         model.B = proj_est.B
+        model.C = define_c(model)
+        model.residuals = calculate_residuals(model)
 
     elseif model.method == :als
 
-        A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
-        B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
+        A0 = isempty(model.A) ? proj_est.A : copy(model.A)
+        B0 = isempty(model.B) ? proj_est.B : copy(model.B)
 
         results = als(model.data, A0, B0; maxiter=model.maxiter, tol=model.tol)
 
         model.A = results.A
         model.B = results.B
+        model.C = define_c(model)
         model.iters = results.num_iter
+        model.residuals = residuals(model)
+        vec_residuals = vectorize(model.residuals)
+        num_params = number_parameters(model)
+        num_eq = prod(model.dims)
+        dof = model.obs - (num_params / num_eq)
+        model.Sigma = (vec_residuals * vec_residuals') ./ dof
 
     elseif model.method == :mle
 
-        A0 = isnothing(model.A) ? proj_est.A : copy(model.A)
-        B0 = isnothing(model.B) ? proj_est.B : copy(model.B)
-        Sigma1_init = I(model.dims[1])
-        Sigma2_init = I(model.dims[2])
+        A0 = isempty(model.A) ? proj_est.A : copy(model.A)
+        B0 = isempty(model.B) ? proj_est.B : copy(model.B)
+        Sigma1_init = proj_cov.A[1]
+        Sigma2_init = proj_cov.B[1]
 
         results = mle(model.data, A0, B0, Sigma1_init, Sigma2_init;
             maxiter=model.maxiter, tol=model.tol)
 
         model.A = results.A
         model.B = results.B
+        model.C = define_c(model)
+        model.Sigma = kron(results.Sigma2, results.Sigma1)
         model.Sigma1 = results.Sigma1
         model.Sigma2 = results.Sigma2
         model.iters = results.num_iter
+        model.residuals = residuals(model)
 
     else
         throw(ArgumentError("Unknown method: $(model.method)"))

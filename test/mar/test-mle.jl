@@ -44,25 +44,50 @@ end
 
 @testset "mle algorithm correctness" begin
     obs = 1000
-    dgp = simulate_mar(obs; snr = 1000)
+    dgp = simulate_mar(obs)
     data = dgp.Y
-    A_init = [randn(3,3)]
-    B_init = [randn(4,4)]
-    Sigma1_init = I(3)
-    Sigma2_init = I(4)
-    obj_true = mle_objective(data, A_init, B_init, Sigma1_init, Sigma2_init)
+    obj_true = mle_objective(data, dgp.A, dgp.B, dgp.Sigma1, dgp.Sigma2)
 
-    results = mle(data, A_init, B_init, Sigma1_init, Sigma2_init)
+    results = mle(data, dgp.A, dgp.B, dgp.Sigma1, dgp.Sigma2)
+    results.obj
 
-    @test norm(results.A - A_init) < 0.1
-    @test norm(results.B - B_init) < 0.1
+    @test norm(results.A[1] - dgp.A[1]) < 0.1
+    @test norm(results.B[1] - dgp.B[1]) < 0.1
 
     kron_est = kron(results.B[1], results.A[1])
-    kron_true = kron(B_init[1], A_init[1])
+    kron_true = kron(dgp.B[1], dgp.A[1])
+    @test norm(kron_est - kron_true) < 0.5
+
+    @test norm(results.Sigma1 - dgp.Sigma1) < 0.5
+    @test norm(results.Sigma2 - dgp.Sigma2) < 0.5
+
+    obj_est = mle_objective(data, results.A, results.B, results.Sigma1, results.Sigma2)
+    @test obj_true < obj_est
+
+end
+
+@testset "mle algorithm projection initialization" begin
+    obs = 1000
+    dgp = simulate_mar(obs)
+    data = dgp.Y
+    obj_true = mle_objective(data, dgp.A, dgp.B, dgp.Sigma1, dgp.Sigma2)
+
+    ols_est, cov_est = estimate_var(data)
+    proj_est = projection(ols_est, (3,4))
+    proj_cov = projection([cov_est], (3,4))
+
+    results = mle(data, proj_est.A, proj_est.B, proj_cov.A[1], proj_cov.B[1])
+    results.obj
+
+    @test norm(results.A[1] - dgp.A[1]) < 0.1
+    @test norm(results.B[1] - dgp.B[1]) < 0.1
+
+    kron_est = kron(results.B[1], results.A[1])
+    kron_true = kron(dgp.B[1], dgp.A[1])
     @test norm(kron_est - kron_true) < 0.1
 
-    @test norm(results.Sigma1 - Sigma1_init) < 2.0
-    @test norm(results.Sigma2 - Sigma2_init) < 2.0
+    @test norm(results.Sigma1 - dgp.Sigma1) < 0.5
+    @test norm(results.Sigma2 - dgp.Sigma2) < 0.5
 
     obj_est = mle_objective(data, results.A, results.B, results.Sigma1, results.Sigma2)
     @test obj_true < obj_est

@@ -42,23 +42,95 @@ end
     A_new, B_new = normalize_slices(A, B)
     @test isapprox(norm(A_new[1]), 1)
     @test isapprox(norm(A_new[2]), 1)
+    @test A_new[1][1] > 0
+    @test A_new[2][1] > 0
     @test isapprox(kron(B[1], A[1]), kron(B_new[1], A_new[1]))
     @test isapprox(kron(B[2], A[2]), kron(B_new[2], A_new[2]))
 
 end
 
-@testset "VAR estimation" begin
+@testset " Commuting B' ⊗ A into B ⊗ A with a permutation matrix" begin
+    A = randn(3,3)
+    K = commutation_matrix(A)
+    @test vec(A) == K * vec(A')
+    @test K * vec(A) == vec(A')
 
-    obs = 100000
-    p = 2
-    dgp = simulate_mar(obs; p=2)
+    A = randn(3,3)
+    B = randn(4,4)
+    P = vectorize_kronecker(B, A)
+
+    @test vec(kron(B, A)) == P * kron(vec(B), vec(A))
+    @test P' * vec(kron(B, A)) == kron(vec(B), vec(A))
+
+    obs = 100
+    dgp = simulate_mar(obs; p=3)
     matdata = dgp.Y
-    true_coef1 = kron(dgp.B[1], dgp.A[1])
-    true_coef2 = kron(dgp.B[2], dgp.A[2])
 
-    est_coef = estimate_var(matdata; p)
-    @test norm(est_coef[1] - true_coef1) < 0.1
-    @test norm(est_coef[2] - true_coef2) < 0.1
+    model = MAR(matdata; method = :proj, p=3)
+    fit!(model)
+    Astack, Bstack = stack_coefs(model)
+    P = vectorize_kronecker(Bstack, Astack)
+    @test vec(kron(Bstack, Astack)) == P * kron(vec(Bstack), vec(Astack))
+    @test P' * vec(kron(Bstack, Astack)) == kron(vec(Bstack), vec(Astack))
 
 end
+
+@testset "Large commutation matrix" begin
+    obs = 100
+    n1 = 3
+    p = 3
+    dgp = simulate_mar(obs; p=3)
+    matdata = dgp.Y
+
+    model = MAR(matdata; method = :proj, p=3)
+    fit!(model)
+    Astack, Bstack = stack_coefs(model)
+
+    transposed_B = vcat(vec(Astack), vec(Bstack'))
+    large_comm = large_commutation_matrix(Bstack', n1, p)
+
+    fixed_B = large_comm * transposed_B
+    @test isapprox(norm(fixed_B - vcat(vec(Astack), vec(Bstack))), 0.0)
+end
+
+@testset "Q selection" begin
+    obs = 100
+    n1 = 3
+    n2 = 4
+    p = 3
+    dgp = simulate_mar(obs; p=3)
+    matdata = dgp.Y
+
+    model = MAR(matdata; method = :mle, p=3)
+    fit!(model)
+    structured_data = structure_lagged_data(model)
+
+    first_obs = structured_data[:, :, 1]
+    vec_obs = vec(first_obs)
+    correct_structure = vcat(vec(first_obs[1:3, 1:4]), vec(first_obs[4:6, 5:8]), vec(first_obs[7:end, 9:end]))
+    Q = Q_matrix(n1, n2, p)
+
+    @test isapprox(norm(correct_structure - Q * vec_obs), 0)
+
+    A, B = stack_coefs(model)
+    full_kron = kron(B, A)
+    selected_kron = full_kron * Q'
+
+    @test selected_kron[1:12, 1:12] == kron(model.B[1], model.A[1])
+    @test selected_kron[1:12, 13:24] == kron(model.B[2], model.A[2])
+    @test selected_kron[1:12, 25:end] == kron(model.B[3], model.A[3])
+
+end
+
+@testset "Index formula" begin
+    n1, n2 = 10, 15
+    idx = [3,2]
+
+    my_mat = reshape(1:n1*n2, n1, n2)
+    selected_val = my_mat[idx[1], idx[2]]
+    formula_val = idx[1] + (idx[2] - 1) * n1
+    @test selected_val == formula_val
+end
+
+
 

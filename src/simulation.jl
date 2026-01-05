@@ -1,13 +1,19 @@
+function make_spd_eig(A::AbstractMatrix; tol=1e-8)
+    A = abs.(Symmetric(A))
+    F = eigen(A)
+    vals = clamp.(F.values, tol, Inf)
+    return F.vectors * Diagonal(vals) * F.vectors' |> Symmetric
+end
 
 """
 Generate MAR coefficients with the normalization that A has a frobenius norm 
 of one.
 """
-function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=500)
+function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=1000)
 
     A = Vector{Matrix{Float64}}(undef, p)
     B = Vector{Matrix{Float64}}(undef, p)
-    scale = 1.0
+    scale = 5
 
     count = 0
     for i in 1:maxiter
@@ -19,11 +25,11 @@ function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=500)
         A, B = normalize_slices(preA, preB)
 
         # Decrease scale every 20 tries if not stable
-        if i % 20 == 0
-            scale *= 0.9
+        if i % 50 == 0
+            scale *= 0.75
         end
 
-        if isstable(A, B)
+        if isstable(A, B; mineigen = 0.1)
             sorted_eigs = mar_eigvals(A, B)
             return (; A, B, sorted_eigs, count)
         end
@@ -46,9 +52,9 @@ function simulate_mar(
     B::Union{Nothing, Vector{<:AbstractMatrix}} = nothing,
     Sigma1::Union{Nothing, AbstractMatrix} = nothing,
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
-    burnin::Int = 50,
+    burnin::Int = 500,
     snr::Real = 0.7,
-    maxiter::Int = 500,
+    maxiter::Int = 1000,
 )
     if A === nothing || B === nothing
         coefs = generate_mar_coefs(n1, n2; p, maxiter)
@@ -61,8 +67,9 @@ function simulate_mar(
         eigval_err = eigval_coef / snr
         Sigma = diagm(repeat([eigval_err], n1 * n2))
         Sigma1, Sigma2, Sigma = projection(Sigma, (n1, n2))
-        Sigma1 = abs.(Sigma1)
-        Sigma2 = abs.(Sigma2)
+        Sigma1 = make_spd_eig(Sigma1; tol=1e-8)
+        Sigma2 = make_spd_eig(Sigma2; tol=1e-8)
+        Sigma = make_spd_eig(Sigma; tol=1e-8)
     end
 
     n1, n2 = size(A[1], 1), size(B[1], 1)
@@ -85,4 +92,72 @@ function simulate_mar(
     sorted_eigs = mar_eigvals(A, B)
 
     return (; Y, A, B, Sigma1, Sigma2, sorted_eigs)
+end
+
+function generate_var_coefs(n::Int, p::Int; maxiter::Int = 1000)
+    for iter in 1:maxiter
+        C = [randn(n, n) * 0.2 for _ in 1:p]  # initial scale
+        companion_c = make_companion(C)
+        evals = eigvals(companion_c)
+        rho = maximum(abs.(evals))
+        if rho < 0.90
+            sorted_eigs = var_eigvals(C)
+            return (; C, sorted_eigs)
+        end
+        # rescale toward stability
+        scale = 0.95 / rho
+        for j in 1:p
+            C[j] .*= scale
+        end
+        if isstable(C; mineigen = 0.1)
+            sorted_eigs = var_eigvals(C)
+            return (; C, sorted_eigs)
+        end
+    end
+    error("generate_var_coefs: failed to produce a stable VAR in $maxiter iterations")
+end
+
+function simulate_var(
+    obs::Int;
+    n::Int = 12,
+    p::Int = 1,
+    C::Union{Nothing, Vector{<:AbstractMatrix}} = nothing,
+    Sigma::Union{Nothing, AbstractMatrix} = nothing,
+    burnin::Int = 500,
+    snr::Real = 0.7,
+    maxiter::Int = 1000,
+)
+    if C === nothing
+        C, _ = generate_var_coefs(n, p; maxiter=maxiter)
+    end
+
+    if Sigma === nothing
+        evals = var_eigvals(C)
+        eigval_coef = maximum(abs.(evals))
+        eigval_coef = eigval_coef == 0.0 ? 1.0 : eigval_coef
+        eigval_err = eigval_coef / snr
+        Sigma = eigval_err * I(n)
+    end
+
+    total_obs = obs + burnin
+    Y = zeros(Float64, n, total_obs)
+    if p >= 1
+        Y[:, 1:p] .= 0.0
+    end
+
+    mvn = MvNormal(zeros(n), Symmetric(Matrix(Sigma)))
+    eps = rand(mvn, total_obs)
+
+    for t in (p+1):total_obs
+        yt = eps[:, t]
+        for j in 1:p
+            yt .+= C[j] * Y[:, t-j]
+        end
+        Y[:, t] = yt
+    end
+
+    Y = Y[:, burnin+1:end]
+    sorted_eigs = var_eigvals(C)
+
+    return (; Y, C, Sigma, sorted_eigs)
 end

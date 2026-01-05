@@ -68,7 +68,15 @@ function mle(
 
     n1, n2 = size(A[1], 1), size(B[1], 1)
     p = length(A)
+    resp = data[:, :, (p+1):end]
+    pred = structure_lagged_data(data; p)
+
+    resp = resp .- mean(resp, dims=3)
+    pred = pred .- mean(pred, dims=3)
     obj = mle_objective(data, A, B, Sigma1, Sigma2)
+
+    Astack = hcat(A...)
+    Bstack = hcat(B...)
 
     track_obj = fill(NaN, maxiter)
 
@@ -77,25 +85,17 @@ function mle(
         num_iter += 1
         obj_old = copy(obj)
 
-        for j in 1:p
-            resp = residual_given_idx(data, A, B, j)
-            pred = data[:, :, (p+1-j):(end-j)]
-            results = als(resp, pred, A[j], B[j]; maxiter, tol, Sigma1, Sigma2)
-            A[j] = results.A
-            B[j] = results.B
-        end
+        Astack = update_A(resp, pred, Bstack; Sigma2=Sigma2)
+        Bstack = update_B(resp, pred, Astack; Sigma1=Sigma1)
+
+        Astack, Bstack = normalize_slices(Astack, Bstack)
 
         Sigma1 = update_Sigma1(data, A, B, Sigma2)
         Sigma2 = update_Sigma2(data, A, B, Sigma1)
 
         obj = mle_objective(data, A, B, Sigma1, Sigma2)
-        norm_A = norm(A)
-        A = A / norm_A
-        B = B * norm_A
 
-        norm_Sigma1 = norm(Sigma1)
-        Sigma1 = Sigma1 / norm_Sigma1
-        Sigma2 = Sigma2 * norm_Sigma1
+        Sigma1, Sigma2 = normalize_slices(Sigma1, Sigma2)
 
         Sigma1 = Symmetric((Sigma1 + Sigma1')/2)
         Sigma2 = Symmetric((Sigma2 + Sigma2')/2)
@@ -103,11 +103,15 @@ function mle(
         track_obj[i] = abs(obj - obj_old)
 
         if track_obj[i] < tol
+            A = [@view Astack[:, (i-1)*n1+1 : i*n1] for i in 1:p]
+            B = [@view Bstack[:, (i-1)*n2+1 : i*n2] for i in 1:p]
             track_obj = track_obj[.!isnan.(track_obj)]
             return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
         end
 
         if i == maxiter
+            A = [@view Astack[:, (i-1)*n1+1 : i*n1] for i in 1:p]
+            B = [@view Bstack[:, (i-1)*n2+1 : i*n2] for i in 1:p]
             @warn "Reached maximum number of iterations"
             return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
         end

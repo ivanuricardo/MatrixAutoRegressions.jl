@@ -1,13 +1,18 @@
 
-mutable struct VAR <: AbstractARModel
-    A::AbstractMatrix
-    p::Int
-    Sigma::Union{Nothing, Matrix{Float64}}
-    dims::Tuple{Int,Int}
-    obs::Int
-    method::Symbol
-    data::AbstractArray
-    maxiter::Int
-    tol::Float64
-    iters::Union{Nothing, Int}
+# We expect a vectorized dataset
+function VAR(data::AbstractMatrix; p::Int=1, C::Union{Nothing, AbstractMatrix}=nothing)
+    method = :mle
+    n, obs = size(data)
+    eff_obs = obs - p
+    return VAR(C, n, p, nothing, eff_obs, method, data, nothing)
 end
+
+function fit!(model::VAR)
+    ols_est, Sigma, U = estimate_var(model)
+    model.C = ols_est
+    model.Sigma = Sigma
+    model.residuals = U
+
+    return model
+end
+

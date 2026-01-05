@@ -5,15 +5,15 @@
     matdata = dgp.Y
 
     model_proj = MAR(matdata, method = :proj)
-    @test model_proj.A == nothing
-    @test model_proj.B == nothing
+    @test isempty(model_proj.A)
+    @test isempty(model_proj.B)
     fit!(model_proj)
     @test model_proj.A isa Vector{<:AbstractMatrix}
     @test model_proj.B isa Vector{<:AbstractMatrix}
 
     model_ls = MAR(matdata, method = :als)
-    @test model_ls.A == nothing
-    @test model_ls.B == nothing
+    @test isempty(model_ls.A)
+    @test isempty(model_ls.B)
     fit!(model_ls)
     @test model_ls.A isa Vector{<:AbstractMatrix}
     @test model_ls.B isa Vector{<:AbstractMatrix}
@@ -21,8 +21,8 @@
     @test mle_objective(model_ls) isa Real
 
     model_mle = MAR(matdata, method = :mle)
-    @test model_mle.A == nothing
-    @test model_mle.B == nothing
+    @test isempty(model_mle.A)
+    @test isempty(model_mle.B)
     fit!(model_mle)
     @test model_mle.A isa Vector{<:AbstractMatrix}
     @test model_mle.B isa Vector{<:AbstractMatrix}

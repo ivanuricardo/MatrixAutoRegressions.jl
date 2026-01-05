@@ -1,5 +1,5 @@
 using MatrixAutoRegressions
-using Test, LinearAlgebra, Random
+using Test, LinearAlgebra, Random, Distributions
 Random.seed!(20250915)
 
 println("Starting tests")
@@ -14,6 +14,9 @@ include("./mar/test-mle.jl")
 include("./test-simulation.jl")
 include("./test-utils.jl")
 include("./mar/test-mar.jl")
+
+include("./var/test-var.jl")
+include("./var/test-ols.jl")
 
 ti = time() - ti
 println("\nTest took total time of:")

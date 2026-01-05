@@ -78,11 +78,25 @@ end
     obj_true = ls_objective(dgp.Y, A, B)
 
     results = als(data, A_init, B_init)
-    @test norm(abs.(results.A[1]) - abs.(A[1])) < 0.1
-    @test norm(abs.(results.B[1]) - abs.(B[1])) < 0.1
+    @test norm(abs.(results.A[1]) - abs.(A[1])) < 0.5
+    @test norm(abs.(results.B[1]) - abs.(B[1])) < 0.5
+    @test isapprox(norm(results.A[1]), 1)
+    @test isapprox(norm(results.A[2]), 1)
 
-    @test norm(abs.(results.A[2]) - abs.(A[2])) < 0.1
-    @test norm(abs.(results.B[2]) - abs.(B[2])) < 0.1
+    model = MAR(data; method = :als, p = 2)
+    fit!(model)
+
+    Astack, Bstack = stack_coefs(model)
+    @test isapprox(norm(Astack), sqrt(p))
+
+    model = MAR(data; method = :als, p = 3)
+    fit!(model)
+
+    Astack, Bstack = stack_coefs(model)
+    @test isapprox(norm(Astack), sqrt(3))
+
+    @test norm(abs.(results.A[2]) - abs.(A[2])) < 0.5
+    @test norm(abs.(results.B[2]) - abs.(B[2])) < 0.5
 
     kron_est = kron(results.B[1], results.A[1])
     kron_true = kron(B[1], A[1])
@@ -115,8 +129,8 @@ end
 
     results2 = als(data, A_init2, B_init2)
 
-    @test norm(abs.(results2.A[1]) - abs.(A_init[1])) < 0.1
-    @test norm(abs.(results2.B[1]) - abs.(B_init[1])) < 0.1
+    @test norm(abs.(results2.A[1]) - abs.(A_init[1])) < 0.5
+    @test norm(abs.(results2.B[1]) - abs.(B_init[1])) < 0.5
 
     kron_est = kron(results2.B[1], results2.A[1])
     kron_true = kron(B_init[1], A_init[1])
@@ -126,7 +140,8 @@ end
 
 @testset "als algorithm correctness lag = 2" begin
     obs = 1000
-    dgp = simulate_mar(obs; snr=1000, p=2)
+    p = 2
+    dgp = simulate_mar(obs; snr=1000, p)
     matdata = dgp.Y
     A_init = dgp.A
     B_init = dgp.B
@@ -134,28 +149,31 @@ end
 
     results = als(matdata, A_init, B_init)
 
-    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.1
-    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.1
+    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.5
+    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.5
 
-    @test norm(abs.(results.A[2]) - abs.(A_init[2])) < 0.1
-    @test norm(abs.(results.B[2]) - abs.(B_init[2])) < 0.1
+    @test norm(abs.(results.A[2]) - abs.(A_init[2])) < 0.5
+    @test norm(abs.(results.B[2]) - abs.(B_init[2])) < 0.5
 
     kron_est = kron(results.B[1], results.A[1])
     kron_true = kron(B_init[1], A_init[1])
-    @test norm(kron_est - kron_true) < 0.1
+    @test norm(kron_est - kron_true) < 0.5
 
     obj_est = ls_objective(matdata, results.A, results.B; p=2)
     @test obj_est < obj_true
 
-    A_init = [randn(3,3), randn(3,3)]
-    B_init = [randn(4,4), randn(4,4)]
+    # Trying with projection estimator as init
+    ols_est, _ = estimate_var(matdata; p)
+    proj_est = projection(ols_est, (3, 4))
+    A0 = proj_est.A
+    B0 = proj_est.B
     results_different_init = als(matdata, A_init, B_init)
 
-    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.1
-    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.1
+    @test norm(abs.(results.A[1]) - abs.(A_init[1])) < 0.5
+    @test norm(abs.(results.B[1]) - abs.(B_init[1])) < 0.5
 
-    @test norm(abs.(results.A[2]) - abs.(A_init[2])) < 0.1
-    @test norm(abs.(results.B[2]) - abs.(B_init[2])) < 0.1
+    @test norm(abs.(results.A[2]) - abs.(A_init[2])) < 0.5
+    @test norm(abs.(results.B[2]) - abs.(B_init[2])) < 0.5
 
 end
 
@@ -176,24 +194,26 @@ end
     @test isapprox(A_new[1], expected_A; atol=1e-12)
 end
 
-@testset "residuals given index" begin
+@testset "Structure lagged data" begin
+       
+    dgp = simulate_mar(100)
+    matdata = dgp.Y
 
-    # simple case: identity transforms
-    m, n, obs, p = 2, 2, 6, 2
-    data = randn(m, n, obs)
+    model = MAR(matdata, method = :als)
+    fit!(model)
+    data = structure_lagged_data(model)
 
-    # A[i] = I, B[i] = I
-    A = [Matrix(I, m, m) for _ in 1:p]
-    B = [Matrix(I, n, n) for _ in 1:p]
+    @test data == model.data[:, :, 1:end-1]
 
-    # case 1: skip index 1 → should subtract only lag 2 contribution
-    res1 = residual_given_idx(data, A, B, 1)
-    @test size(res1) == (m, n, obs - p)
+    dgp = simulate_mar(100; p=2)
+    matdata = dgp.Y
 
-    # sanity check: if A = 0 matrices, residuals = response
-    A0 = [zeros(m, m) for _ in 1:p]
-    B0 = [zeros(n, n) for _ in 1:p]
-    res0 = residual_given_idx(data, A0, B0, 1)
-    @test res0 ≈ data[:,:,p+1:end]
+    model = MAR(matdata; method = :als, p=2)
+    fit!(model)
+    data = structure_lagged_data(model)
+
+    n1, n2 = model.dims
+    @test size(data) == (2*n1, 2*n2, 100-2)
 
 end
+

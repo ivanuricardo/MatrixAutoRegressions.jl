@@ -36,11 +36,14 @@ end
     cholesky_asymptotic_variance = avar_cholesky(var_model)
     cholesky_ses = sqrt.(diag(cholesky_asymptotic_variance))
 
-
     @test length(vech_sigma) == length(ses) == n * (n+1) / 2
 
     # Quick revech test
     u = revech(vech_sigma)
     @test u == var_model.Sigma
+
+    lower_u = revech_lower(vech_sigma)
+    @test istril(lower_u)
+    @test istriu(u - lower_u, 1) # From the first superdiagonal
 
 end

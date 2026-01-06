@@ -13,25 +13,6 @@ function vech(x::AbstractMatrix)
     return out
 end
 
-function revech(v::AbstractVector)
-    L = length(v)
-    # compute n and check
-    n = Int(floor((sqrt(1 + 8L) - 1) / 2))
-    n * (n + 1) ÷ 2 == L || throw(ArgumentError("length(v) must be n(n+1)/2"))
-
-    T = eltype(v)
-    M = zeros(T, n, n)
-
-    # linear indices for the lower triangle (column-major order)
-    lower_inds = [i + (j-1)*n for j in 1:n for i in j:n]
-    upper_inds = [j + (i-1)*n for j in 1:n for i in j:n]  # transposed positions
-
-    M[lower_inds] = v
-    M[upper_inds] = v
-
-    return M
-end
-
 function revech_lower(v::AbstractVector)
     L = length(v)
     n = Int(floor((-1 + sqrt(1 + 8L)) / 2))
@@ -44,6 +25,12 @@ function revech_lower(v::AbstractVector)
     lower_inds = [i + (j-1)*n for j in 1:n for i in j:n]
 
     M[lower_inds] = v
+    return M
+end
+
+function revech(v::AbstractVector)
+    M = revech_lower(v)
+    M .= LowerTriangular(M) .+ LowerTriangular(M)'.- Diagonal(diag(M))
     return M
 end
 

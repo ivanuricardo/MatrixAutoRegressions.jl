@@ -139,9 +139,7 @@ end
 
     sigma2_updated = update_Sigma2(data, model.A, model.B, sigma1_updated)
 
-    @test size(sigma2_updated) == model.Sigma2
-
-
+    @test size(sigma2_updated) == size(model.Sigma2)
 
 end
 

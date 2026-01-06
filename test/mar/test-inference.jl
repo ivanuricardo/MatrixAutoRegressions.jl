@@ -60,16 +60,27 @@ end
     se[1]
 end
 
+function ensure_symbol_method!(model, meth::Symbol)
+    # Some constructors sometimes store methods as strings; force the symbol used by asymptotic_variance
+    if hasproperty(model, :method) && model.method != meth
+        try
+            model.method = meth
+        catch
+            # ignore if immutable; the subsequent explicit direct-call tests still exercise functions
+        end
+    end
+end
+
 @testset "Variance Projection" begin
 
     obs = 100
     dgp = simulate_mar(obs)
     matdata = dgp.Y
 
-    model = MAR(matdata; method = :proj)
+    model_proj = MAR(matdata; method = :proj)
     fit!(model)
 
-    var_proj = variance_proj(model)
+    var_proj = variance_proj(model_proj)
 
     @test size(var_proj, 1) == 12 * 12
 

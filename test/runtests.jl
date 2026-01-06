@@ -14,6 +14,7 @@ include("./mar/test-mle.jl")
 include("./test-simulation.jl")
 include("./test-utils.jl")
 include("./mar/test-mar.jl")
+include("./mar/test-inference.jl")
 
 include("./var/test-var.jl")
 include("./var/test-ols.jl")

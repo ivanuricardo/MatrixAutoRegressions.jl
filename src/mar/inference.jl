@@ -107,6 +107,7 @@ function stack_coefs(model::MAR)
     return (; A, B)
 end
 
+# Variance proj only works with 1 lag
 function variance_proj(model::MAR)
     require_fitted(model)
     n1, n2 = model.dims

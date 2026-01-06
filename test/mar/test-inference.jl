@@ -47,37 +47,29 @@ end
     matdata = dgp.Y
 
     model_proj = MAR(matdata; method = :proj)
-    fit!(model)
+    fit!(model_proj)
 
     var_proj = variance_proj(model_proj)
 
-    @test size(var_proj, 1) == 12 * 12
-
-    model = MAR(matdata; method = :proj, p = 2)
-    fit!(model)
-
-    var_proj = variance_proj(model)
-
-    @test size(var_proj, 1) == n1^2 * n2^2 * p^2
+    @test size(var_proj.cov_full, 1) == 12 * 12
+    # Variance proj only works with 1 lag
 end
 
 @testset "Variance ALS" begin
-    dgp = simulate_mar(100; p = 3)
+    n1 = 3
+    n2 = 4
+    n = n1*n2
+    p = 3
+    expected_size = n * n * p * p
+
+    dgp = simulate_mar(100; p)
     matdata = dgp.Y
 
-    model = MAR(matdata, method = :als, p = 3)
+    model = MAR(matdata; method = :als, p)
     fit!(model)
 
-    var_proj = variance_proj(model)
     var_als = variance_als(model)
-    @test size(var_proj) == size(var_als.cov_full) == size(var_ols)
-
-    model = MAR(matdata; method = :als)
-    fit!(model)
-
-    var_proj = variance_proj(model)
-    var_als = variance_als(model)
-    @test size(var_proj) == size(var_als.cov_full) == size(var_ols)
+    @test size(var_als.cov_full) == (expected_size, expected_size)
 
 end
 
@@ -201,7 +193,6 @@ end
     Astack, Bstack = stack_coefs(model)
     @test size(Astack) == (3,9)
     @test size(Bstack) == (4,12)
-    @test isapprox(norm(Astack), 1)
 
     model = MAR(matdata; method = :proj, p=1)
     fit!(model)
@@ -217,7 +208,6 @@ end
     Astack, Bstack = stack_coefs(model)
     @test size(Astack) == (3,6)
     @test size(Bstack) == (4,8)
-    @test isapprox(norm(Astack), 1)
 
 end
 

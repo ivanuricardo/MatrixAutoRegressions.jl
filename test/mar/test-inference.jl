@@ -117,6 +117,12 @@ end
     fit!(model_als)
     var_als = asymptotic_variance(model_als)
 
+    model_proj = MAR(matdata, method = :proj)
+    fit!(model_proj)
+    var_proj = asymptotic_variance(model_proj)
+
+    @test size(var_mle.cov_full) == size(var_als.cov_full) == size(var_proj.cov_full)
+
     mle_cov_full = var_mle.cov_full
     als_cov_full = var_als.cov_full
     ev_mle = abs.(eigvals(mle_cov_full))
@@ -320,7 +326,6 @@ end
 
 end
 
-
 @testset "easy symmetric function" begin
     n = 12
     A = randn(n, n)
@@ -347,6 +352,10 @@ end
     
 end
 
+@testset "" begin
+    
+    @test 
+end
 
 
 

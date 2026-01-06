@@ -217,3 +217,12 @@ end
 
 end
 
+@testset "Reaching maximum iterations" begin
+
+    dgp = simulate_mar(100)
+    matdata = dgp.Y
+
+    model = MAR(matdata, method = :als, maxiter=2, tol=1e-12)
+    @test_warn "Reached maximum number of iterations" fit!(model)
+end
+

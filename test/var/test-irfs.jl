@@ -86,7 +86,7 @@ end
 
     shock_idx = 1
     irf_reduced = reduced_form_irf(model; hmax=2, shock_idx=shock_idx, theta=theta, ident=:reduced)
-    irf_chol    = reduced_form_irf(model; hmax=2, shock_idx=shock_idx, theta=theta_chol, ident=:cholesky)
+    irf_chol = reduced_form_irf(model; hmax=2, shock_idx=shock_idx, theta=theta_chol, ident=:cholesky)
 
     e = zeros(n); e[shock_idx] = 1.0
     for h in 0:2

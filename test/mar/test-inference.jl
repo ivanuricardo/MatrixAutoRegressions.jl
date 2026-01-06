@@ -112,14 +112,17 @@ end
     model_mle = MAR(matdata; method = :mle)
     fit!(model_mle)
     var_mle = asymptotic_variance(model_mle)
+    @test !isnothing(var_mle.cov_full)
 
     model_als = MAR(matdata, method = :als)
     fit!(model_als)
     var_als = asymptotic_variance(model_als)
+    @test !isnothing(var_als.cov_full)
 
     model_proj = MAR(matdata, method = :proj)
     fit!(model_proj)
     var_proj = asymptotic_variance(model_proj)
+    @test !isnothing(var_proj.cov_full)
 
     @test size(var_mle.cov_full) == size(var_als.cov_full) == size(var_proj.cov_full)
 

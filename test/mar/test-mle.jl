@@ -123,3 +123,21 @@ end
     @test obj_true < obj_est
 
 end
+
+@testset "Sigma updates" begin
+    obs = 100
+    dgp = simulate_mar(obs; p=1)
+    data = dgp.Y
+    model = MAR(data, maxiter=1000, tol=1e-10)
+    fit!(model)
+
+    sigma1_updated = update_Sigma1(data, model.A, model.B, model.Sigma2)
+
+    @test norm(sigma1_updated - model.Sigma1) < 0.1
+    @test norm(dgp.Sigma1 - sigma1_updated) < 0.1
+
+    sigma2_updated = update_Sigma2(data, model.A, model.B, sigma1_updated)
+
+    @test norm(sigma2_updated - model.Sigma2) < 0.1
+end
+

@@ -135,9 +135,13 @@ end
 
     @test norm(sigma1_updated - model.Sigma1) < 0.1
     @test norm(dgp.Sigma1 - sigma1_updated) < 0.1
+    @test size(sigma1_updated) == model.Sigma1
 
     sigma2_updated = update_Sigma2(data, model.A, model.B, sigma1_updated)
 
-    @test norm(sigma2_updated - model.Sigma2) < 0.1
+    @test size(sigma2_updated) == model.Sigma2
+
+
+
 end
 

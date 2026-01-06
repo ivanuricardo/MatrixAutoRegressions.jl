@@ -129,6 +129,8 @@ function simulate_var(
 )
     if C === nothing
         C, _ = generate_var_coefs(n, p; maxiter=maxiter)
+    else
+        n = size(C[1], 1)
     end
 
     if Sigma === nothing

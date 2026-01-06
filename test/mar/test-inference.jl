@@ -321,8 +321,31 @@ end
 end
 
 
+@testset "easy symmetric function" begin
+    n = 12
+    A = randn(n, n)
+    sym_a = MatrixAutoRegressions.sym(A)
+    @test issymmetric(sym_a)
+end
 
+@testset "get C standard error" begin
+    obs = 1000
+    dgp = simulate_mar(obs; p=1)
+    matdata = dgp.Y
 
+    model = MAR(matdata; method = :mle, p=1)
+    fit!(model)
+
+    c_stderr = get_c_stderr(model)
+    all_std_errors = std_errors(model)
+    @test all_std_errors.C_stderr[1] == c_stderr[1]
+
+    var_model = VAR(vectorize(matdata))
+    fit!(var_model)
+    var_stderr = std_errors(var_model)
+    @test norm(var_stderr[1]) > norm(c_stderr[1])
+    
+end
 
 
 

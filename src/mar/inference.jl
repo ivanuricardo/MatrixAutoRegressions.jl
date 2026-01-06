@@ -20,23 +20,6 @@ function structure_lagged_data(model::MAR)
 
 end
 
-#=function structure_lagged_data(model::MAR)=#
-#=    data = model.data=#
-#=    n1, n2 = model.dims=#
-#=    obs = model.obs=#
-#=    p = model.p=#
-#=    structured_data = zeros(n1*p, n2*p, obs)=#
-#=    structured_data[1:n1, 1:n2, 1:obs] .= data[:, :, 1:end-1]=#
-#==#
-#=    for i in 1:(p-1)=#
-#=        first_idx = (n1*i+1):n1*(i+1)=#
-#=        second_idx = (n2*i+1):n2*(i+1)=#
-#=        prepared_data = data[:,:,1:end-1]=#
-#=        structured_data[first_idx, second_idx, 1:obs] .= prepared_data=#
-#=    end=#
-#=    return structured_data=#
-#=end=#
-
 function selection_matrix(idx::Int, model::MAR)
     n1, n2 = model.dims
     p = model.p

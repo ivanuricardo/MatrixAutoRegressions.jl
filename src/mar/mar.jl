@@ -1,4 +1,26 @@
 
+"""
+Create an un-fitted `MAR` model object from a 3D data array.
+
+# Arguments
+- `data::AbstractArray` — Observed data with shape `(nrow, ncol, T)`.
+- `p::Int=1` — Lag order.
+- `method::Symbol=:mle` — Default estimation method used by `fit!`. Common choices: `:mle`, `:als`, or `:proj`.
+- `A::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}()` — Optional initial guesses for left coefficient matrices.
+- `B::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}()` — Optional initial guesses for right coefficient matrices.
+- `C::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}()` — Optional initial guesses for intercept matrices.
+- `maxiter::Int=100` — Maximum iterations for iterative estimation routines.
+- `tol::Real=1e-6` — Convergence tolerance for iterative estimation.
+
+# Returns
+A `MAR` struct with the provided fields filled and placeholders (`nothing`) for estimated covariances, residuals, and `iters`. Use `fit!(m)` to estimate parameters.
+
+# Examples
+```julia
+data = randn(3, 2, 200)               # 3×2 observation matrix, T=200
+m = MAR(data; p=1, method=:ols)
+fit!(m)                               # populates A, B, C, Sigma, residuals, iters
+"""
 function MAR(data::AbstractArray;
     p::Int=1,
     method::Symbol=:mle,

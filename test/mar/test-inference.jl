@@ -1,34 +1,3 @@
-@testset "Variance OLS" begin
-    
-    obs = 100
-    dgp = simulate_mar(obs)
-    matdata = dgp.Y
-
-    model1 = MAR(matdata, method = :proj)
-    fit!(model1)
-
-    var_ols1 = variance_ols(model1)
-
-    @test size(var_ols1, 1) == 12 * 12
-
-    p = 2
-    model2 = MAR(matdata, method = :proj, p = p)
-    fit!(model2)
-    tmp = residuals(model2)
-
-    var_ols2 = variance_ols(model2)
-
-    @test size(var_ols2, 1) == 12 * 12 * (p * p)
-
-    p = 3
-    model3 = MAR(matdata, method = :proj, p = p)
-    fit!(model3)
-
-    var_ols3 = variance_ols(model3)
-
-    @test size(var_ols3, 1) == 12 * 12 * (p * p)
-
-end
 
 @testset "Rearranged coef leads to rearranged covariance" begin
 
@@ -87,7 +56,6 @@ end
     model = MAR(matdata; method = :proj, p = 2)
     fit!(model)
 
-    var_ols = variance_ols(model)
     var_proj = variance_proj(model)
 
     @test size(var_proj, 1) == n1^2 * n2^2 * p^2
@@ -100,7 +68,6 @@ end
     model = MAR(matdata, method = :als, p = 3)
     fit!(model)
 
-    var_ols = variance_ols(model)
     var_proj = variance_proj(model)
     var_als = variance_als(model)
     @test size(var_proj) == size(var_als.cov_full) == size(var_ols)
@@ -108,7 +75,6 @@ end
     model = MAR(matdata; method = :als)
     fit!(model)
 
-    var_ols = variance_ols(model)
     var_proj = variance_proj(model)
     var_als = variance_als(model)
     @test size(var_proj) == size(var_als.cov_full) == size(var_ols)
@@ -365,16 +331,3 @@ end
     @test norm(var_stderr[1]) > norm(c_stderr[1])
     
 end
-
-@testset "" begin
-    
-    @test 
-end
-
-
-
-
-
-
-
-

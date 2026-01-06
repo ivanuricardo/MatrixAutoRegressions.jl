@@ -37,6 +37,7 @@ export fit!
 export predict
 export train_test_split
 export ls_objective
+export coef
 export mle_objective
 
 include("./mar/als.jl")

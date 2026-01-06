@@ -58,3 +58,14 @@ end
 
 end
 
+@testset "Getting coefs" begin
+    dgp = simulate_mar(50; n1=3, n2=4, p=2, snr=1000)
+    model = MAR(dgp.Y, p=2)
+    fit!(model)
+    my_coefs = coef(model)
+    
+    @test my_coefs.A == model.A
+    @test my_coefs.B == model.B
+    @test my_coefs.C == model.C
+end
+

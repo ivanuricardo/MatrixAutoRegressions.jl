@@ -180,7 +180,8 @@ function coef(model::MAR)
     require_fitted(model)
     A = model.A
     B = model.B
-    return (;A, B)
+    C = model.C
+    return (;A, B, C)
 end
 
 # This is only forecasting using forecasted values

@@ -22,6 +22,7 @@ include("./var/test-ols.jl")
 
 include("./test-simulation.jl")
 include("./test-utils.jl")
+include("./test-types.jl")
 
 ti = time() - ti
 println("\nTest took total time of:")

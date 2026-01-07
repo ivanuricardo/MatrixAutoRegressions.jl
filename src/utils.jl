@@ -419,7 +419,7 @@ function calculate_residuals(model::VAR)
     return model.residuals
 end
 
-function Base.show(io::IO, model::MAR)
+function show(io::IO, model::MAR)
     print(io, "MAR model (p=$(model.p), method=$(model.method))\n")
     print(io, "dims=$(model.dims), obs=$(model.obs)\n")
     print(io, "A=$(isempty(model.A) ? "unset" : size(model.A[1])) ")
@@ -432,7 +432,7 @@ function Base.show(io::IO, model::MAR)
     end
 end
 
-function Base.show(io::IO, model::VAR)
+function show(io::IO, model::VAR)
     print(io, "VAR model (p=$(model.p))\n")
     print(io, "obs=$(model.obs)\n")
 

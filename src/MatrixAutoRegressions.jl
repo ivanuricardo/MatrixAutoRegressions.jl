@@ -7,12 +7,14 @@ using Distributions
 using Random
 using SparseArrays
 
+import Distributions: loglikelihood
+import Base: show
+
 include("./types.jl")
 export AbstractARModel
 export VAR
 export MAR
 export residuals
-export loglikelihood
 export aic
 export bic
 export hqc

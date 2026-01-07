@@ -135,9 +135,9 @@ function bic(model::AbstractARModel)
 end
 
 function hqc(model::AbstractARModel)
+    k = number_parameters(model)
+    obs = model.obs
     if model.method == :mle
-        obs = model.obs
-        k = number_parameters(model)
         return k * 2 * log(log(obs)) - 2 * loglikelihood(model)
     end
     ch = cholesky(model.Sigma)

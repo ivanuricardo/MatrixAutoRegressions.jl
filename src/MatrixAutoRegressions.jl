@@ -18,6 +18,7 @@ export residuals
 export aic
 export bic
 export hqc
+export ic
 
 include("./var/var.jl")
 include("./var/irfs.jl")

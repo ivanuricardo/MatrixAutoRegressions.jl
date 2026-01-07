@@ -95,3 +95,104 @@ end
 
     @test isapprox(q_impl, q_manual; atol=1e-10)
 end
+
+# === Helper: small dummy model types to isolate IC logic ===
+mutable struct DummyMLE <: AbstractARModel
+    obs::Int
+    method::Symbol
+    Sigma::Matrix{Float64}
+    k::Int
+    ll::Float64
+end
+
+mutable struct DummyNonMLE <: AbstractARModel
+    obs::Int
+    method::Symbol
+    Sigma::Matrix{Float64}
+    k::Int
+end
+
+# Also need some helpers here
+MatrixAutoRegressions.number_parameters(m::DummyMLE) = m.k
+MatrixAutoRegressions.number_parameters(m::DummyNonMLE) = m.k
+
+MatrixAutoRegressions.loglikelihood(m::DummyMLE) = m.ll
+
+@testset "Information criteria: basic formula checks" begin
+    # --- MLE branch matches explicit formulas ---
+    m = DummyMLE(100, :mle, zeros(1,1), 10, -123.456)
+    expected_aic = 2*m.k - 2*loglikelihood(m)
+    expected_bic = m.k * log(m.obs) - 2*loglikelihood(m)
+    expected_hqc = m.k * 2 * log(log(m.obs)) - 2*loglikelihood(m)
+
+    @test aic(m) == expected_aic
+    @test bic(m) == expected_bic
+    @test hqc(m) == expected_hqc
+
+    # --- non-MLE branch uses cholesky(logdet) formula ---
+    # Use identity covariance for clarity: logdetterm == 0 so AIC == 2k
+    sigma = Matrix{Float64}(I, 4, 4)
+    mn = DummyNonMLE(50, :als, sigma, 7)
+
+    ch = cholesky(mn.Sigma)
+    logdetterm = 2 * sum(log, diag(ch.L))
+    expected_aic_nonmle = 2 * mn.k + mn.obs * logdetterm
+    expected_bic_nonmle = mn.k * log(mn.obs) + mn.obs * logdetterm
+    expected_hqc_nonmle = mn.k * log(log(mn.obs)) + mn.obs * logdetterm
+
+    @test aic(mn) == expected_aic_nonmle
+    @test bic(mn) == expected_bic_nonmle
+    @test hqc(mn) == expected_hqc_nonmle
+
+    # sanity for identity Sigma (logdetterm==0)
+    @test isapprox(logdetterm, 0.0; atol=1e-14)
+    @test aic(mn) == 2 * mn.k
+    @test bic(mn) == mn.k * log(mn.obs)
+    @test hqc(mn) == mn.k * log(log(mn.obs))
+end
+
+@testset "IC dispatcher and invalid type" begin
+    m = DummyMLE(20, :mle, zeros(1,1), 3, -10.0)
+
+    @test ic(m; ic_type=:aic) == aic(m)
+    @test ic(m; ic_type=:bic) == bic(m)
+    @test ic(m; ic_type=:hqc) == hqc(m)
+    @test_throws ErrorException ic(m; ic_type=:unknown)
+end
+
+@testset "Monotonicity in parameter count (penalty increases predictably)" begin
+    # Two MLE models with identical loglik but different k
+    base_ll = -200.0
+    m1 = DummyMLE(200, :mle, zeros(1,1), 5, base_ll)
+    m2 = DummyMLE(200, :mle, zeros(1,1), 8, base_ll)
+
+    # AIC difference should be 2*(k2-k1)
+    @test isapprox(aic(m2) - aic(m1), 2 * (m2.k - m1.k))
+
+    # BIC difference should be log(obs) * (k2-k1)
+    @test isapprox(bic(m2) - bic(m1), log(m1.obs) * (m2.k - m1.k))
+
+    # HQC difference should be 2*log(log(obs))*(k2-k1)
+    @test isapprox(hqc(m2) - hqc(m1), 2 * log(log(m1.obs)) * (m2.k - m1.k))
+
+    # Same checks for non-MLE branch: penalty terms independent of loglik
+    Σ = Matrix{Float64}(I, 2, 2)
+    n1 = DummyNonMLE(120, :als, Σ, 4)
+    n2 = DummyNonMLE(120, :als, Σ, 6)
+
+    @test isapprox(aic(n2) - aic(n1), 2 * (n2.k - n1.k))
+    @test isapprox(bic(n2) - bic(n1), log(n1.obs) * (n2.k - n1.k))
+    @test isapprox(hqc(n2) - hqc(n1), log(log(n1.obs)) * (n2.k - n1.k))
+end
+
+@testset "Numeric stability / edge checks" begin
+    # Large obs value: ensure no unexpected NaN for HQC log(log(obs))
+    large_obs = 10_000
+    m = DummyMLE(large_obs, :mle, zeros(1,1), 2, 1.0)
+    @test !isnan(hqc(m)) && isfinite(hqc(m))
+
+    # Small obs but >1 so log(log(obs)) defined
+    small_obs = 3
+    m_small = DummyMLE(small_obs, :mle, zeros(1,1), 2, 1.0)
+    @test isfinite(hqc(m_small))
+end

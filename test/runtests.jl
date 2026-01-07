@@ -15,6 +15,8 @@ include("./mar/test-proj.jl")
 include("./mar/test-mle.jl")
 include("./mar/test-irf.jl")
 
+include("./var/test-inference.jl")
+include("./var/test-irfs.jl")
 include("./var/test-var.jl")
 include("./var/test-ols.jl")
 

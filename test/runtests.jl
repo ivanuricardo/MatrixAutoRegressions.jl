@@ -13,11 +13,13 @@ include("./mar/test-inference.jl")
 include("./mar/test-als.jl")
 include("./mar/test-proj.jl")
 include("./mar/test-mle.jl")
-include("./test-simulation.jl")
-include("./test-utils.jl")
+include("./mar/test-irf.jl")
 
 include("./var/test-var.jl")
 include("./var/test-ols.jl")
+
+include("./test-simulation.jl")
+include("./test-utils.jl")
 
 ti = time() - ti
 println("\nTest took total time of:")

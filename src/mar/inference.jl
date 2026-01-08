@@ -113,10 +113,10 @@ function variance_proj(model::MAR)
     n1, n2 = model.dims
     p = model.p
     Astack, Bstack = stack_coefs(model)
-    var_model = VAR(vectorize(model.data))
+    var_model = VAR(vectorize(model.data); p=p)
     fit!(var_model)
     var_ols = asymptotic_variance(var_model)
-    perm_mat = kron(I(p^2), permutation_matrix(model.dims))
+    perm_mat = kron(I(p), permutation_matrix(model.dims))
     xi = perm_mat * var_ols * perm_mat'
 
     alpha = vec(Astack)

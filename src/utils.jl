@@ -62,18 +62,7 @@ function make_companion_var(model::MAR)
     Fdim = prod(model.dims) * model.p
     companion_var = zeros(Fdim * Fdim, Fdim * Fdim)
     companion_var[1:Fdim, 1:Fdim] = cov_full
-    return companion_full
-end
-
-function companion_data(data::AbstractMatrix; p::Int=1)
-    n, obs = size(data)
-    k = obs - p
-    X = zeros(N*p, K)
-    for t in 1:k
-        for i in 1:p
-            X[(n*(i-1)+1):(n*i), t] = data[:, t + p - i]
-        end
-    end
+    return companion_var
 end
 
 function mar_eigvals(A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix})

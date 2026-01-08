@@ -132,5 +132,92 @@ end
     @test selected_val == formula_val
 end
 
+# A helper for manual construction of companion form
+function build_expected_companion_from_blocks(blocks::Vector{<:AbstractMatrix})
+    n = size(blocks[1], 1)
+    p = length(blocks)
+    top = hcat(blocks...)
+    ident = Matrix{eltype(top)}(I, n*(p-1), n*(p-1))
+    companionlower = hcat(ident, zeros(eltype(top), n*(p-1), n))
+    return vcat(top, companionlower)
+end
 
+@testset "make_companion: matrix and vector inputs" begin
+    n = 2
+    # two lags (p=2)
+    A1 = [1.0 2.0; 3.0 4.0]
+    A2 = [-1.0 0.5; 0.2 0.3]
+
+    Cmat = hcat(A1, A2)
+    comp_from_mat = make_companion(Cmat)
+    expected = build_expected_companion_from_blocks([A1, A2])
+    @test size(comp_from_mat) == (n*2, n*2)
+    @test comp_from_mat == expected
+
+    comp_from_vec = make_companion([A1, A2])
+    @test comp_from_vec == expected
+
+end
+
+@testset "make_companion(A::Vector, B::Vector) uses kron(B_i, A_i)" begin
+    A1 = [1.0 0.0; 0.0 2.0]
+    A2 = [0.5 0.1; 0.2 0.3]
+    B1 = [1.0 2.0; 3.0 4.0]
+    B2 = [0.1 0.2; 0.3 0.4]
+
+    # expected blocks: kron(B1,A1), kron(B2,A2)
+    K1 = kron(B1, A1)
+    K2 = kron(B2, A2)
+    expected = build_expected_companion_from_blocks([K1, K2])
+
+    comp_kron = make_companion([A1, A2], [B1, B2])
+    @test comp_kron == expected
+end
+
+@testset "make_companion invalid-dimension errors" begin
+    # columns not divisible by n should raise InexactError when converting to Int
+    Cbad = randn(2, 3)   # 3 / n = 1.5 -> Int(1.5) triggers InexactError
+    @test_throws InexactError make_companion(Cbad)
+end
+
+@testset "make_companion_var: places asymptotic covariance in top-left block" begin
+    # Build a minimal MAR to pass to the function.
+    # Fields not used by make_companion_var other than dims and p can be dummy values.
+    mar = MAR(
+        Vector{Matrix{Float64}}(),
+        Vector{Matrix{Float64}}(),
+        Vector{Matrix{Float64}}(),
+        2,
+        nothing,
+        nothing,
+        nothing,
+        (2, 3),   # nrow=2, ncol=3 -> prod=6
+        0,
+        :mle,
+        zeros(2,3,1),
+        0,
+        0.0,
+        nothing,
+        nothing
+    )
+
+    Fdim = prod(mar.dims) * mar.p
+    cov_full = Matrix{Float64}(I, Fdim, Fdim)
+
+    # Just to modify the asymptotic_variance function for this test
+    function MatrixAutoRegressions.asymptotic_variance(m::MAR)
+        return cov_full, nothing
+    end
+
+    # expected companion variance matrix: (Fdim*Fdim) × (Fdim*Fdim),
+    # with cov_full located in top-left Fdim×Fdim block
+    expected = zeros(Float64, Fdim * Fdim, Fdim * Fdim)
+    expected[1:Fdim, 1:Fdim] .= cov_full
+
+    # The intended behavior of make_companion_var is to return `companion_var`.
+    # The test below asserts that behavior.
+    compvar = make_companion_var(mar)
+    @test size(compvar) == size(expected)
+    @test compvar == expected
+end
 

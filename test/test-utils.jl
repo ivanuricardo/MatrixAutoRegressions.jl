@@ -315,3 +315,25 @@ end
 
 end
 
+@testset "Specification test" begin
+
+    obs = 1000
+    n1 = 2
+    n2 = 3
+    n = n1*n2
+    var_dgp = simulate_var(obs; n)
+    mar_dgp = simulate_mar(obs; n1, n2)
+
+    matdata_from_var = matricize(var_dgp.Y, n1, n2)
+    matdata_from_mar = mar_dgp.Y
+
+    # If the DGP is a VAR, we should reject
+
+    test_reject = specification_test(matdata_from_var)
+    test_fail_to_reject = specification_test(matdata_from_mar)
+
+    # Only test I can think of for now
+    @test test_reject < 0.05
+    @test test_fail_to_reject > 0.05
+end
+

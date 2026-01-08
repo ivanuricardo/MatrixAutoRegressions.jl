@@ -268,3 +268,50 @@ end
     # mineigen effect for A,B
     @test !isstable(A, B; mineigen=0.6)
 end
+
+@testset "Quick fitted test" begin
+
+    obs = 10
+    n1 = 2
+    n2 = 2
+    p = 1
+    dgp = simulate_mar(obs; p)
+    matdata = dgp.Y
+    model = MAR(matdata; method = :proj, p)
+
+    @test_throws ErrorException require_fitted(model)
+end
+
+@testset "fit_and_select! selects model and returns IC table (VAR-like)" begin
+    # Build synthetic data with enough time points
+    n = 3
+    obs = 500
+    true_p = 4
+    dgp = simulate_var(obs; n, p=true_p)
+
+    p_max = 5
+    var_model = VAR(dgp.Y; p=p_max)
+
+    model_best, ic_table = fit_and_select!(var_model; ic_type=:bic)
+
+    # expected: ic(p) = p^2 for p in 0:p_max
+    ps = collect(0:p_max)
+    expected_ics = [p^2 for p in ps]
+
+    @test typeof(model_best) == VAR
+    @test model_best.p == true_p
+    @test model_best.obs == var_model.obs
+    @test size(ic_table) == (length(ps), 2)
+
+    dgp2 = simulate_mar(1000; p = true_p)
+    mar_model = MAR(dgp2.Y; p=p_max)
+
+    mar_best, mar_ic = fit_and_select!(mar_model; ic_type=:bic)
+
+    @test typeof(mar_best) == MAR
+    @test mar_best.p == true_p
+    @test mar_best.obs == mar_model.obs
+    @test size(mar_ic) == (length(ps), 2)
+
+end
+

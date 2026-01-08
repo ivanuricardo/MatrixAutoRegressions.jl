@@ -226,40 +226,35 @@ function large_commutation_matrix(A::AbstractMatrix, n1::Integer, p::Integer)
 
 end
 
-function get_input_data(model::VAR)
-    p = model.p
-    adjusted_data = model.data[:, (p+1):end]
-    return adjusted_data
-end
-
-function get_input_data(model::MAR)
-    p = model.p
-    adjusted_data = model.data[:, :, (p+1):end]
-    return adjusted_data
-end
-
 make_model(data, ::Type{VAR}; p) = VAR(data; p)
 make_model(data, ::Type{MAR}; p) = MAR(data; p)
 
 function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
-    p_max = model.p
-    ps = 0:p_max
-    ics = zeros(length(ps))
-    model_type = typeof(model)
-
-    # Start with the largest p to ensure same sample size
+    # fit the provided (largest-p) model once
     fit!(model)
-    obs = model.obs
-    ic_best = ic(model; ic_type=ic_type)
-    ics[p_max+1] = ic_best
-    model_best = model
-    data = get_input_data(model)
+    fixed_data = model.data
+    p_max = model.p
+    ps = collect(0:p_max)
+    ics = fill(NaN, length(ps))
 
-    for p in p_max:-1:0
-        model_tmp = make_model(data, model_type; p=p)
+    # record the ic for the provided model (p_max)
+    ic_best = ic(model; ic_type=ic_type)
+    ics[end] = ic_best
+    model_best = model
+
+    # evaluate smaller-lag models using the same effective sample
+    for p in (p_max-1):-1:0
+        start = p_max - p + 1
+        data = isa(model, VAR) ? fixed_data[:, start:end] :
+               isa(model, MAR) ? fixed_data[:, :, start:end] :
+               error("Unsupported model type: $(typeof(model))")
+
+        model_tmp = make_model(data, typeof(model); p=p)
         fit!(model_tmp)
+
         ic_tmp = ic(model_tmp; ic_type=ic_type)
         ics[p+1] = ic_tmp
+
         if ic_tmp < ic_best
             ic_best = ic_tmp
             model_best = model_tmp

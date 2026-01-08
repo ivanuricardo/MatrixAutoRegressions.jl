@@ -66,7 +66,6 @@ export make_companion
 export make_companion_var
 export fit_and_select!
 export isstable
-export estimate_ols
 export require_fitted
 export normalize_slices
 export mar_eigvals

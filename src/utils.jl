@@ -116,7 +116,7 @@ The companion matrix is constructed using the makecompanion function.
 
 """
 function isstable(var::AbstractMatrix{T}; mineigen::Real=0.0, maxeigen::Real=0.90) where {T}
-    C = makecompanion(var)
+    C = make_companion(var)
     max_case = maximum(abs.(eigen(C).values)) < maxeigen
     min_case = minimum(abs.(eigen(C).values)) > mineigen
     return max_case && min_case
@@ -134,13 +134,6 @@ function isstable(C::Vector{<:AbstractMatrix}; mineigen::Real=0.0, maxeigen::Rea
     max_case = maximum(abs.(eigen(companion_c).values)) < maxeigen
     min_case = minimum(abs.(eigen(companion_c).values)) > mineigen
     return max_case && min_case
-end
-
-function estimate_ols(resp::AbstractArray, pred::AbstractArray)
-    vec_resp = vectorize(resp)
-    vec_pred = vectorize(pred)
-
-    return vec_resp * vec_pred' / (vec_pred * vec_pred')
 end
 
 function is_fitted(model::MAR)

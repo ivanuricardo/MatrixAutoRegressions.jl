@@ -221,3 +221,50 @@ end
     @test compvar == expected
 end
 
+@testset "matrix input (scalar AR)" begin
+    # p = 2 companion for scalar case: companion = [[a1 a2]; [1 0]]
+    a1 = 0.5
+    a2 = 0.2
+    Cmat = hcat([a1], [a2])'  # shape (1,2) but hcat in scalar context: use transpose
+    # ensure Cmat is 1×2
+    Cmat = reshape([a1, a2], 1, 2)
+
+    @test isstable(Cmat)    # roots have magnitudes ≲ 0.7623 and 0.2623 -> stable
+
+    # make it unstable by increasing a1
+    C_unstable = reshape([0.95, 0.0], 1, 2)   # eigenvalue near 0.95
+    @test !isstable(C_unstable)
+
+    # equality at threshold should be treated as *not* stable (strict <)
+    C_thresh = reshape([0.9], 1, 1)
+    @test !isstable(C_thresh; maxeigen=0.9)
+end
+
+@testset "vector-of-matrices input (p=1)" begin
+    # stable scalar block (positive)
+    C_block = [Matrix{Float64}([0.5;;])]
+    @test isstable(C_block)
+
+    # negative eigenvalue but abs < maxeigen -> still stable (abs used in eigen test)
+    C_neg = [Matrix{Float64}([-0.8;;])]
+    @test isstable(C_neg)
+
+    # mineigen check: require eigen > mineigen (strict), 0.5 > 0.6 is false
+    @test !isstable(C_block; mineigen=0.6)
+
+    # equality at mineigen is *not* stable (strict >)
+    @test !isstable(C_block; mineigen=0.5)
+end
+
+@testset "A,B input (scalar) / mar_eigvals path" begin
+    A = [Matrix{Float64}([0.5;;])]
+    B = [Matrix{Float64}([1.0;;])]
+    @test isstable(A, B)
+
+    # increase A to exceed threshold
+    A_unstable = [Matrix{Float64}([0.95;;])]
+    @test !isstable(A_unstable, B)
+
+    # mineigen effect for A,B
+    @test !isstable(A, B; mineigen=0.6)
+end

@@ -143,3 +143,42 @@ end
 
 end
 
+@testset "Flipflop covariance" begin
+
+    n1, n2, T = 4, 6, 200
+    A = randn(n1, n1); Sigma1_true = A*A' + 0.1I
+    B = randn(n2, n2); Sigma2_true = B*B' + 0.1I
+    true_scale = norm(Sigma1_true)
+    Sigma1_true ./= true_scale
+    Sigma2_true .*= true_scale
+
+    # generate matrix-normal draws: X = L1 * Z * L2'
+    L1 = cholesky(Symmetric(Sigma1_true)).L
+    L2 = cholesky(Symmetric(Sigma2_true)).L
+
+    X = Array{Float64,3}(undef, n1, n2, T)
+    for t in 1:T
+        Z = randn(n1, n2)
+        X[:, :, t] = L1 * Z * L2'
+    end
+
+    sigma1_est, sigma2_est, iters = flipflop_covariance(X; maxiter=500, tol=1e-6)
+
+    # compare Kronecker products (relative Frobenius error)
+    K_true = kron(Sigma2_true, Sigma1_true)
+    K_est  = kron(sigma2_est, sigma1_est)
+    rel_err = norm(K_est - K_true) / norm(K_true)
+
+
+    @test rel_err < 0.1
+
+    mar_model = MAR(X; p=0, tol=1e-06)
+    fit!(mar_model)
+
+    @test norm(mar_model.Sigma1 - sigma1_est) < 0.01  # not exactly the same because initialization
+    better_init_rel_err = norm(mar_model.Sigma - K_true) / norm(K_true)
+
+    # Better initialization leads to smaller relative error
+    @test better_init_rel_err < rel_err
+
+end

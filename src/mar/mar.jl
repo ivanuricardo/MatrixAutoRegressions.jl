@@ -47,9 +47,13 @@ function fit!(model::MAR)
         flat_residuals = vectorize(model.residuals)
         cov_est = (flat_residuals * flat_residuals') / model.obs
         proj_est = projection(cov_est, (n1, n2))
-        model.Sigma = cov_est
-        model.Sigma1 = proj_est.A
-        model.Sigma2 = proj_est.B
+
+        sigma_ests = flipflop_covariance(model.residuals; model.maxiter, tol=model.tol,
+                        sigma1=proj_est.A, sigma2=proj_est.B)
+        model.Sigma1 = sigma_ests.sigma1
+        model.Sigma2 = sigma_ests.sigma2
+        model.Sigma = kron(sigma_ests.sigma2, sigma_ests.sigma1)
+        model.iters = sigma_ests.iters
         return model
     end
 

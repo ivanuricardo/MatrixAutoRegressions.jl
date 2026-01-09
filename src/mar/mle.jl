@@ -117,3 +117,61 @@ function mle(
         end
     end
 end
+
+function flipflop_covariance(X::AbstractArray;
+    maxiter::Int=100,
+    tol::Real=1e-6,
+    sigma1::Union{Nothing, Matrix{Float64}}=nothing,
+    sigma2::Union{Nothing, Matrix{Float64}}=nothing,
+    )
+
+    n1, n2, obs = size(X)
+
+    # Initial values
+    sigma1 = sigma1 == nothing ? I(n1) : copy(sigma1)
+    sigma2 = sigma2 == nothing ? I(n2) : copy(sigma2)
+
+    iters = 0
+    for iter in 1:maxiter
+        iters = iter
+        sigma1_old = sigma1
+        sigma2_old = sigma2
+
+        # === Update Σ2 given Σ1 ===
+        sigma1inv = I / sigma1
+        S2 = zeros(n2, n2)
+
+        for t in 1:obs
+            Xt = view(X, :, :, t)
+            S2 .+= Xt' * sigma1inv * Xt
+        end
+
+        sigma2 = S2 / (obs * n1)
+
+        # === Update Σ1 given Σ2 ===
+        sigma2inv =  I / sigma2
+        S1 = zeros(n1, n1)
+
+        for t in 1:obs
+            Xt = view(X, :, :, t)
+            S1 .+= Xt * sigma2inv * Xt'
+        end
+
+        sigma1 = S1 / (obs * n2)
+
+        # normalize (identification)
+        scale = norm(sigma1)
+        sigma2 .*= scale
+        sigma1 ./= scale
+
+        # === convergence check ===
+        err = max(norm(sigma1 - sigma1_old) / norm(sigma1_old),
+                  norm(sigma2 - sigma2_old) / norm(sigma2_old))
+
+        if err < tol
+            break
+        end
+    end
+
+    return (;sigma1, sigma2, iters)
+end

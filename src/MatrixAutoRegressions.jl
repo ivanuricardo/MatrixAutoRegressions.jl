@@ -53,6 +53,7 @@ include("./mar/mle.jl")
 export update_Sigma1
 export update_Sigma2
 export mle
+export flipflop_covariance
 
 include("./mar/proj.jl")
 export projection

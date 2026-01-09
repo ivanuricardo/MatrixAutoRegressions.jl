@@ -169,7 +169,6 @@ end
     K_est  = kron(sigma2_est, sigma1_est)
     rel_err = norm(K_est - K_true) / norm(K_true)
 
-
     @test rel_err < 0.1
 
     mar_model = MAR(X; p=0, tol=1e-06)

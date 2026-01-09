@@ -79,11 +79,7 @@ function loglikelihood(model::MAR)
     if model.method != :mle
         error("Method must be Maximum Likelihood!")
     end
-    if model.p == 0
-        E = model.residuals
-    else
-        E = residuals(model)
-    end
+    E = residuals(model)
 
     n1, n2, obs = size(E)
 

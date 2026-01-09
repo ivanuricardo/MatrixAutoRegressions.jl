@@ -314,21 +314,32 @@ function vectorize_kronecker(A::AbstractMatrix, B::AbstractMatrix)
 end
 
 function number_parameters(model::MAR)
-    if model.C == Matrix{Float64}[]
-        return 0
-    end
-    number_A = sum(length, model.A)
-    number_B = sum(length, model.B)
+    require_fitted(model)
+    n1, n2 = model.dims
+    num_cov1 = n1 * (n1 + 1) / 2
+    num_cov2 = n2 * (n2 + 1) / 2
 
-    return number_A + number_B
+    if model.C == Matrix{Float64}[]
+        return num_cov1 + num_cov2 - 1
+    end
+
+    num_A = sum(length, model.A)
+    num_B = sum(length, model.B)
+    num_restrictions = model.p + 1
+
+    return num_cov1 + num_cov2 + num_A + num_B - num_restrictions
 end
 
 function number_parameters(model::VAR)
+    require_fitted(model)
+    n = model.n
+    num_cov = n * (n + 1) / 2
+
     if model.C == Matrix{Float64}[]
-        return 0
-    else
-        return sum(length, model.C)   # 0 automatically when p = 0
+        return num_cov
     end
+
+    return sum(length, model.C) + num_cov
 end
 
 function calculate_residuals(model::MAR)

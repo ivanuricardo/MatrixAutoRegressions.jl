@@ -76,6 +76,10 @@ function mar_eigvals(A::Vector{<:AbstractMatrix}, B::Vector{<:AbstractMatrix})
     return eig_phi
 end
 
+function mar_eigvals(model::MAR)
+    return mar_eigvals(model.A, model.B)
+end
+
 function var_eigvals(C::Vector{<:AbstractMatrix})
     p = length(C)
     n = size(C[1], 1)

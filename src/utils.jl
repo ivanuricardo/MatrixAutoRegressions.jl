@@ -24,7 +24,6 @@ Thus, ``B`` is a ``np\times np`` matrix.
 -`B::AbstractMatrix{T}`: Lag matrix in the form required for a `VAR` model. See
     the documentation of `VAR`.
 
-
 ## References
 
 - Kilian, L., & Lütkepohl, H. (2017). Structural Vector Autoregressive Analysis:

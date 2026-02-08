@@ -336,6 +336,15 @@ end
 
 function number_parameters(model::VAR)
     require_fitted(model)
+    if model.lambda != 0
+        sv_squared = svd(model.data).S.^2
+        den = sv_squared .+ model.lambda
+        dof = sum(sv_squared ./ den)
+
+        n = model.n
+        num_cov = n * (n + 1) / 2
+        return dof + num_cov
+    end
     n = model.n
     num_cov = n * (n + 1) / 2
 

@@ -9,6 +9,7 @@ mutable struct VAR <: AbstractARModel
     method::Symbol
     data::AbstractArray
     residuals::Union{Nothing, Matrix{Float64}}
+    lambda::Float64
 end
 
 """

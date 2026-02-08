@@ -21,6 +21,8 @@ export hqc
 export ic
 
 include("./var/var.jl")
+export select_lambda
+
 include("./var/irfs.jl")
 
 include("./var/ols.jl")

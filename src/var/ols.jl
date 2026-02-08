@@ -2,6 +2,7 @@
 function estimate_var(model::VAR)
     obs = model.obs  # effective number of observations
     data = model.data
+    lambda = model.lambda
     p = model.p
     n = model.n
     if obs <= p
@@ -26,7 +27,7 @@ function estimate_var(model::VAR)
 
     Y = data[:, p+1:(obs+p)]
     demeaned_Y = Y .- mean(Y, dims = 2)
-    A_hat = (demeaned_Y * demeaned_X') * inv(demeaned_X * demeaned_X')
+    A_hat = (demeaned_Y * demeaned_X') * inv(demeaned_X * demeaned_X' + lambda * I)
     coeffs = [A_hat[:, (n*(i-1)+1):(n*i)] for i in 1:p]
 
     U = demeaned_Y - A_hat * demeaned_X
@@ -195,9 +196,7 @@ function bias_correction!(model::VAR)
     C_corrected = [C_hat[j] + (b_mats[j] / obs) for j in 1:p]
 
     model.C = C_corrected
-    
+
     return model
 end
-
-
 

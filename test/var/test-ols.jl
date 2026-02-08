@@ -48,7 +48,7 @@ end
     sims = 10000
     p = 2
     n = 4
-    obs = 100
+    obs = 50
 
     dgp = simulate_var(obs; p, n)
     Y = dgp.Y

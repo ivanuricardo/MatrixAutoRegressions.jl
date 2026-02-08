@@ -16,7 +16,6 @@ Create the VAR companion matrix.
 
 Given a VAR of the form yₜ = b₀ + B₁ y_t-1 + … + Bₚy_t-p + εₜ
 
-
 Create the companion matrix.
 Thus, ``B`` is a ``np\times np`` matrix. 
 

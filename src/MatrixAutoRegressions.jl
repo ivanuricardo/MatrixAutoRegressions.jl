@@ -32,6 +32,8 @@ include("./var/irfs.jl")
 include("./var/ols.jl")
 export estimate_var
 export estimate_var_cov
+
+include("./var/bias_correction.jl")
 export pope_kilian_bias
 export bias_correction!
 export bias_correction

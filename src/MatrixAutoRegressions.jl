@@ -14,6 +14,11 @@ include("./types.jl")
 export AbstractARModel
 export VAR
 export MAR
+export BiasCorrection
+export Analytical
+export Bootstrap
+
+include("./statistics.jl")
 export residuals
 export aic
 export bic
@@ -21,7 +26,6 @@ export hqc
 export ic
 
 include("./var/var.jl")
-export select_lambda
 
 include("./var/irfs.jl")
 
@@ -30,6 +34,7 @@ export estimate_var
 export estimate_var_cov
 export pope_kilian_bias
 export bias_correction!
+export bias_correction
 
 include("./var/inference.jl")
 export avar_sigma

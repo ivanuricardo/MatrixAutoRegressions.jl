@@ -16,28 +16,3 @@ function fit!(model::VAR)
     return model
 end
 
-function select_lambda(model::VAR, lambda_range::AbstractRange{<:Real}; ic_type::Symbol=:bic)
-    nlambda = length(lambda_range)
-    ic_matrix = fill(NaN, nlambda, 2)
-    data = model.data
-    p = model.p
-    
-    best_ic = Inf
-    optimal_lambda = first(lambda_range)
-    
-    for (idx, lambda) in enumerate(lambda_range)
-        lambda_model = VAR(data; p, lambda = lambda)
-        fit!(lambda_model)
-        ic_val = ic(lambda_model; ic_type)
-
-        ic_matrix[idx, 1] = lambda
-        ic_matrix[idx, 2] = ic_val
-
-        if ic_val < best_ic
-            best_ic = ic_val
-            optimal_lambda = lambda
-        end
-    end
-    
-    return (;optimal_lambda, ic_matrix)
-end

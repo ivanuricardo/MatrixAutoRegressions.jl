@@ -182,21 +182,24 @@ function pope_kilian_bias(model::VAR)
     return bias
 end
 
-function bias_correction!(model::VAR)
+function bias_correction!(model::VAR, method::Analytical)
     require_fitted(model)
     C_hat = model.C
+    
     n = model.n
     p = model.p
     obs = model.obs
     bias_full = pope_kilian_bias(model)
     b_top = bias_full[1:n, :]
-
     b_mats = [b_top[:, (j-1)*n+1 : j*n] for j in 1:p]
-
     C_corrected = [C_hat[j] + (b_mats[j] / obs) for j in 1:p]
-
+    
     model.C = C_corrected
-
     return model
 end
 
+function bias_correction(model::AbstractARModel, method::Analytical)
+    corrected = deepcopy(model)
+    bias_correction!(corrected, method)
+    return corrected
+end

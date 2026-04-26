@@ -16,10 +16,11 @@ Create an un-fitted `MAR` model object from a 3D data array.
 A `MAR` struct with the provided fields filled and placeholders (`nothing`) for estimated covariances, residuals, and `iters`. Use `fit!(m)` to estimate parameters.
 
 # Examples
-```julia
-data = randn(3, 2, 200)               # 3×2 observation matrix, T=200
-m = MAR(data; p=1, method=:ols)
-fit!(m)                               # populates A, B, C, Sigma, residuals, iters
+    ```julia
+    data = randn(3, 2, 200)               # 3×2 observation matrix, T=200
+    m = MAR(data; p=1, method=:ols)
+    fit!(m)                               # populates A, B, C, Sigma, residuals, iters
+    ```
 """
 function MAR(data::AbstractArray;
     p::Int=1,

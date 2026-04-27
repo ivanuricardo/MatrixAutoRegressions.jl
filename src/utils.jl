@@ -105,13 +105,6 @@ A VAR model is considered stable if all the eigenvalues of its companion matrix 
 
 - `Bool`: Returns `true` if the VAR model is stable, and `false` otherwise.
 
-## Example
-
-```julia
-B = [1.0 2.0;
-     3.0 4.0]
-var_stable = isstable(B)  # Returns true or false based on the stability of the VAR model
-```
 ## Note
 The stability of a VAR model is determined by analyzing the eigenvalues of its companion matrix.
 The companion matrix is constructed using the makecompanion function.

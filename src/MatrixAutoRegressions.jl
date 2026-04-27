@@ -34,6 +34,7 @@ export estimate_var
 export estimate_var_cov
 
 include("./var/bias_correction.jl")
+export simulate_bootstrap_sample
 export pope_kilian_bias
 export bias_correction!
 export bias_correction
@@ -59,6 +60,8 @@ export _update_fac
 export update_A
 export update_B
 export als
+
+include("./mar/bias_correction.jl")
 
 include("./mar/mle.jl")
 export update_Sigma1

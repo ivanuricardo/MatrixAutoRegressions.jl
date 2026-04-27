@@ -90,8 +90,8 @@ function simulate_mar(
 
     Y = Y[:, :, burnin+1:end]
     sorted_eigs = mar_eigvals(A, B)
-
-    return (; Y, A, B, Sigma1, Sigma2, sorted_eigs)
+    C = [kron(B[j], A[j]) for j in 1:p]
+    return (; Y, A, B, C, Sigma1, Sigma2, sorted_eigs)
 end
 
 function generate_var_coefs(n::Int, p::Int; maxiter::Int = 1000)

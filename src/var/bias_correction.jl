@@ -70,50 +70,41 @@ function bias_correction!(model::VAR, method::Analytical)
     return model
 end
 
+function simulate_bootstrap_sample(C_hat, U, data_vec, p, obs, n)
+    boot_idx = rand(1:obs, obs)
+    U_star = U[:, boot_idx]
+    Y_star = zeros(n, obs + p)
+    Y_star[:, 1:p] .= data_vec[:, 1:p]
+    for t in (p+1):(obs+p)
+        y_t = zeros(n)
+        for j in 1:p
+            y_t .+= C_hat[j] * Y_star[:, t-j]
+        end
+        Y_star[:, t] = y_t + U_star[:, t-p]
+    end
+    return Y_star
+end
+
+
 function bias_correction!(model::VAR, method::Bootstrap)
     require_fitted(model)
-
     n = model.n
     p = model.p
     obs = model.obs
-    data = model.data
     C_hat = model.C
-
     U = model.residuals
 
     C_sum = [zeros(n, n) for _ in 1:p]
 
     for m in 1:method.n_boot
-        # resample residuals with replacement
-        boot_idx = rand(1:obs, obs)
-        U_star = U[:, boot_idx]
-
-        # Simulate bootstrap sample using the estimated coefficient
-        # Use the first p observations from original data as initial conditions
-        Y_star = zeros(n, obs + p)
-        Y_star[:, 1:p] .= data[:, 1:p]
-
-        for t in (p+1):(obs+p)
-            y_t = zeros(n)
-            for j in 1:p
-                y_t .+= C_hat[j] * Y_star[:, t-j]
-            end
-            Y_star[:, t] = y_t + U_star[:, t-p]
-        end
-
-        # re-estimate OLS on bootstrap sample
+        Y_star = simulate_bootstrap_sample(C_hat, U, model.data, p, obs, n)
         boot_coeffs, _ = estimate_var(Y_star; p=p)
-
         for j in 1:p
             C_sum[j] .+= boot_coeffs[j]
         end
     end
 
-    # Φ̄ = average of bootstrap estimates
     C_bar = [C_sum[j] / method.n_boot for j in 1:p]
-
-    # bias-corrected = 2Φ̂ - Φ̄
     model.C = [2 * C_hat[j] - C_bar[j] for j in 1:p]
-    
     return model
 end

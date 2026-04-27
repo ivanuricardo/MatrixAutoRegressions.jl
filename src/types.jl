@@ -61,6 +61,6 @@ struct Analytical <: BiasCorrection end
 
 struct Bootstrap <: BiasCorrection
     n_boot::Int
-    ci_level::Float64
+    restricted::Bool
 end
-Bootstrap(; n_boot::Int=1000, ci_level::Float64=0.95) = Bootstrap(n_boot, ci_level)
+Bootstrap(; n_boot::Int=1000, restricted::Bool=true) = Bootstrap(n_boot, restricted)

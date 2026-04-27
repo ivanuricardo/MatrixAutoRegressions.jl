@@ -1,4 +1,10 @@
 
+function reshaping_operator(C::AbstractMatrix, n1::Int, n2::Int)
+    tensor_c = reshape(C, (n1, n2, n1, n2))
+    R = reshape(permutedims(tensor_c, (1, 3, 2, 4)), n1 * n1, n2 * n2)
+    return R
+end
+
 """
     projection(Phi::AbstractMatrix, m::Int, n::Int)
 
@@ -14,8 +20,7 @@ Compute the nearest Kronecker product (NKP) projection of Phi onto B ⊗ A.
 """
 function projection(phi::AbstractMatrix{T}, dims::Tuple) where T
     n1, n2 = dims
-    tensor_phi = reshape(phi, (n1, n2, n1, n2))
-    R = reshape(permutedims(tensor_phi, (1, 3, 2, 4)), n1 * n1, n2 * n2)
+    R = reshaping_operator(phi, n1, n2)
     F = svd(R)
     A = reshape(F.U[:, 1] * sqrt(F.S[1]), n1, n1)
     B = reshape(F.V[:, 1] * sqrt(F.S[1]), n2, n2)

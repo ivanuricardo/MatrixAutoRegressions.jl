@@ -72,6 +72,7 @@ export flipflop_covariance
 include("./mar/proj.jl")
 export projection
 export permutation_matrix
+export reshaping_operator
 
 include("./utils.jl")
 export vectorize

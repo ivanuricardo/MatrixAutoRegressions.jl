@@ -1,10 +1,10 @@
 
 # We expect a vectorized dataset
-function VAR(data::AbstractMatrix; p::Int=1, C::Union{Nothing, AbstractMatrix}=nothing, lambda::Float64=0.0)
+function VAR(data::AbstractMatrix; p::Int=1, C::Union{Nothing, AbstractMatrix}=nothing)
     method = :mle
     n, obs = size(data)
     eff_obs = obs - p
-    return VAR(C, n, p, nothing, eff_obs, method, data, nothing, lambda)
+    return VAR(C, n, p, nothing, eff_obs, method, data, nothing)
 end
 
 function fit!(model::VAR)

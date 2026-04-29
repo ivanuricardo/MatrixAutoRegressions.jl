@@ -2,7 +2,6 @@
 function estimate_var(model::VAR)
     obs = model.obs  # effective number of observations
     data = model.data
-    lambda = model.lambda
     p = model.p
     n = model.n
     if obs <= p
@@ -27,7 +26,7 @@ function estimate_var(model::VAR)
 
     Y = data[:, p+1:(obs+p)]
     demeaned_Y = Y .- mean(Y, dims = 2)
-    A_hat = (demeaned_Y * demeaned_X') * inv(demeaned_X * demeaned_X' + lambda * I)
+    A_hat = (demeaned_Y * demeaned_X') * inv(demeaned_X * demeaned_X')
     coeffs = [A_hat[:, (n*(i-1)+1):(n*i)] for i in 1:p]
 
     U = demeaned_Y - A_hat * demeaned_X

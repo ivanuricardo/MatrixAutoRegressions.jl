@@ -57,7 +57,7 @@ end
 function bias_correction!(model::VAR, method::Analytical)
     require_fitted(model)
     C_hat = model.C
-    
+
     n = model.n
     p = model.p
     obs = model.obs
@@ -65,12 +65,17 @@ function bias_correction!(model::VAR, method::Analytical)
     b_top = bias_full[1:n, :]
     b_mats = [b_top[:, (j-1)*n+1 : j*n] for j in 1:p]
     C_corrected = [C_hat[j] + (b_mats[j] / obs) for j in 1:p]
-    
+
     model.C = C_corrected
     return model
 end
 
-function simulate_bootstrap_sample(C_hat, U, data_vec, p, obs, n)
+function simulate_bootstrap_sample(C_hat::Vector{<:AbstractMatrix},
+                                   U::Matrix{Float64},
+                                   data_vec::Matrix{Float64},
+                                   p::Int,
+                                   obs::Int,
+                                   n::Int)
     boot_idx = rand(1:obs, obs)
     U_star = U[:, boot_idx]
     Y_star = zeros(n, obs + p)

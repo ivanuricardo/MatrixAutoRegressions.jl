@@ -48,26 +48,13 @@ function pope_kilian_bias(model::VAR)
     return bias
 end
 
-function bias_correction(model::AbstractARModel, method::BiasCorrection)
-    corrected = deepcopy(model)
-    bias_correction!(corrected, method)
-    return corrected
-end
-
-function bias_correction!(model::VAR, method::Analytical)
+function bias(model::VAR, ::Analytical)
     require_fitted(model)
-    C_hat = model.C
-
-    n = model.n
-    p = model.p
-    obs = model.obs
+    n, p, obs = model.n, model.p, model.obs
     bias_full = pope_kilian_bias(model)
     b_top = bias_full[1:n, :]
-    b_mats = [b_top[:, (j-1)*n+1 : j*n] for j in 1:p]
-    C_corrected = [C_hat[j] + (b_mats[j] / obs) for j in 1:p]
-
-    model.C = C_corrected
-    return model
+    # pope_kilian_bias returns -T * bias, so negate and scale
+    return [-b_top[:, (j-1)*n+1 : j*n] / obs for j in 1:p]
 end
 
 function simulate_bootstrap_sample(C_hat::Vector{<:AbstractMatrix},
@@ -90,17 +77,12 @@ function simulate_bootstrap_sample(C_hat::Vector{<:AbstractMatrix},
     return Y_star
 end
 
-
-function bias_correction!(model::VAR, method::Bootstrap)
+function bias(model::VAR, method::Bootstrap)
     require_fitted(model)
-    n = model.n
-    p = model.p
-    obs = model.obs
+    n, p, obs = model.n, model.p, model.obs
     C_hat = model.C
     U = model.residuals
-
     C_sum = [zeros(n, n) for _ in 1:p]
-
     for m in 1:method.n_boot
         Y_star = simulate_bootstrap_sample(C_hat, U, model.data, p, obs, n)
         boot_coeffs, _ = estimate_var(Y_star; p=p)
@@ -108,8 +90,20 @@ function bias_correction!(model::VAR, method::Bootstrap)
             C_sum[j] .+= boot_coeffs[j]
         end
     end
-
     C_bar = [C_sum[j] / method.n_boot for j in 1:p]
-    model.C = [2 * C_hat[j] - C_bar[j] for j in 1:p]
+    return [C_bar[j] - C_hat[j] for j in 1:p]
+end
+
+function bias_correction!(model::VAR, method::BiasCorrection)
+    require_fitted(model)
+    b = bias(model, method)
+    model.C = [model.C[j] - b[j] for j in 1:model.p]
     return model
 end
+
+function bias_correction(model::AbstractARModel, method::BiasCorrection)
+    corrected = deepcopy(model)
+    bias_correction!(corrected, method)
+    return corrected
+end
+

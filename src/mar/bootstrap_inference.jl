@@ -1,0 +1,57 @@
+
+function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
+                       boot_runs::Int=2000,
+                       hmax::Int=20,
+                       shock_idx::AbstractVector=[1,1],
+                       ident::Symbol=:reduced,
+                       alpha::Float64=0.05,
+                       shortcut::Bool=true)
+    require_fitted(model)
+    p, obs = model.p, model.obs
+    n1, n2 = model.dims
+    n = n1 * n2
+    U = model.residuals
+    vec_data = vectorize(model.data)
+    vec_residuals = vectorize(U)
+
+    # Step 1a: bias-correct the original estimate
+    b_hat = bias(model, bias_method)
+
+    # Step 1b: enforce stationarity via shrinkage
+    C_bc = enforce_stationarity(model.C, b_hat, n, p)
+
+    # Step 2a: bootstrap from the bias-corrected DGP
+    irf_store = zeros(n, hmax + 1, boot_runs)
+    for m in 1:boot_runs
+        Y_star = simulate_bootstrap_sample(C_bc, vec_residuals, vec_data,
+                                           p, obs, n)
+        matrix_data = matricize(Y_star, n1, n2)
+        boot_model = MAR(matrix_data; p=p)
+        fit!(boot_model)
+
+        # estimate bias of this replicate
+        b_star = shortcut ? b_hat : bias(boot_model, bias_method)
+
+        # Step 2b: enforce stationarity on the replicate
+        C_star_bc = enforce_stationarity(boot_model.C, b_star, n, p)
+
+        boot_model.C = C_star_bc
+        irf_star = reduced_form_irf(boot_model; hmax=hmax,
+                                    shock_idx=shock_idx, ident=ident)
+        irf_store[:, :, m] = irf_star
+    end
+
+    # Step 3: percentile intervals
+    lo = alpha / 2
+    hi = 1 - lo
+    ci_lower = mapslices(x -> quantile(x, lo), irf_store; dims=3)[:,:,1]
+    ci_upper = mapslices(x -> quantile(x, hi), irf_store; dims=3)[:,:,1]
+
+    # Point IRFs from bias-corrected model
+    bc_model = deepcopy(model)
+    bc_model.C = C_bc
+    point_irfs = reduced_form_irf(bc_model; hmax=hmax,
+                                  shock_idx=shock_idx, ident=ident)
+
+    return (; irfs=point_irfs, ci_lower, ci_upper, irf_store)
+end

@@ -129,4 +129,6 @@ export construct_WW
 export std_errors
 export get_c_stderr
 
+include("./mar/bootstrap_inference.jl")
+
 end

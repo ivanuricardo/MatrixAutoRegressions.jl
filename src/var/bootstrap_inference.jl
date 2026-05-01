@@ -38,7 +38,7 @@ Kilian (1998) bootstrap-after-bootstrap confidence intervals for IRFs.
   all replications instead of re-estimating per replicate.
 """
 function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
-                       boot_runs::Int=1000,
+                       boot_runs::Int=2000,
                        hmax::Int=20,
                        shock_idx::Int=1,
                        ident::Symbol=:reduced,

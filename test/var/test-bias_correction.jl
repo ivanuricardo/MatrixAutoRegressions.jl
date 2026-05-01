@@ -53,7 +53,7 @@ end
         fit!(var_model)
 
         analytic = bias_correction(var_model, Analytical())
-        bs = bias_correction(var_model, Bootstrap(n_boot=100))
+        bs = bias_correction(var_model, Bootstrap(bias_runs=100))
 
         for j in 1:p
             sum_analytic[j] .+= analytic.C[j]

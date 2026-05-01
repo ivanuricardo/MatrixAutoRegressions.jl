@@ -59,7 +59,7 @@ end
 struct Analytical <: BiasCorrection end
 
 struct Bootstrap <: BiasCorrection
-    n_boot::Int
+    bias_runs::Int
     restricted::Bool
 end
-Bootstrap(; n_boot::Int=1000, restricted::Bool=true) = Bootstrap(n_boot, restricted)
+Bootstrap(; bias_runs::Int=1000, restricted::Bool=true) = Bootstrap(bias_runs, restricted)

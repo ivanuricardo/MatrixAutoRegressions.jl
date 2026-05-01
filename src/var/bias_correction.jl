@@ -83,14 +83,14 @@ function bias(model::VAR, method::Bootstrap)
     C_hat = model.C
     U = model.residuals
     C_sum = [zeros(n, n) for _ in 1:p]
-    for m in 1:method.n_boot
+    for m in 1:method.bias_runs
         Y_star = simulate_bootstrap_sample(C_hat, U, model.data, p, obs, n)
         boot_coeffs, _ = estimate_var(Y_star; p=p)
         for j in 1:p
             C_sum[j] .+= boot_coeffs[j]
         end
     end
-    C_bar = [C_sum[j] / method.n_boot for j in 1:p]
+    C_bar = [C_sum[j] / method.bias_runs for j in 1:p]
     return [C_bar[j] - C_hat[j] for j in 1:p]
 end
 

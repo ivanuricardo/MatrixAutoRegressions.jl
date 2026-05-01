@@ -1,5 +1,5 @@
 
-function irf_ma(model::VAR; hmax::Int=1, ident::Symbol=:reduced)
+function irf_ma(model::VAR; hmax::Int=20, ident::Symbol=:reduced)
     require_fitted(model)
     C = model.C
     n = size(C[1],1)
@@ -40,7 +40,7 @@ function get_cholesky_innovation_matrix(model::VAR)
     return cholesky(Symmetric(Σ)).L
 end
 
-function reduced_form_irf(model::VAR; hmax::Int=1,
+function reduced_form_irf(model::VAR; hmax::Int=20,
                           shock_idx::Int=1,
                           theta=nothing,
                           ident::Symbol=:reduced)
@@ -67,7 +67,7 @@ function reduced_form_irf(model::VAR; hmax::Int=1,
     return irf
 end
 
-function all_irf_variances(model::VAR, theta::Vector{<:AbstractMatrix}; hmax::Integer=1, ident::Symbol=:reduced)
+function all_irf_variances(model::VAR, theta::Vector{<:AbstractMatrix}; hmax::Integer=20, ident::Symbol=:reduced)
     require_fitted(model)
     T = eltype(model.C[1])
     n = model.n
@@ -99,7 +99,7 @@ function all_irf_variances(model::VAR, theta::Vector{<:AbstractMatrix}; hmax::In
 end
 
 function irf_variance(model::VAR, theta::Vector{<:AbstractMatrix};
-                      hmax::Integer=1, shock_idx::Int=1, ident::Symbol=:reduced)
+                      hmax::Integer=20, shock_idx::Int=1, ident::Symbol=:reduced)
     require_fitted(model)
     T = eltype(model.C[1])
 
@@ -120,7 +120,7 @@ function irf_variance(model::VAR, theta::Vector{<:AbstractMatrix};
     
 end
 
-function irf(model::VAR; hmax::Integer=1,
+function irf(model::VAR; hmax::Integer=20,
              shock_idx::Int=1,
              ident::Symbol=:reduced)
 

@@ -38,6 +38,7 @@ export simulate_bootstrap_sample
 export pope_kilian_bias
 export bias_correction!
 export bias_correction
+export bias
 
 include("./var/inference.jl")
 export avar_sigma
@@ -46,6 +47,10 @@ export revech
 export revech_lower
 export avar_cholesky
 export vech_selection_mat
+
+include("./var/bootstrap_inference.jl")
+export enforce_stationarity
+export irf_bootstrap 
 
 include("./mar/mar.jl")
 export fit!

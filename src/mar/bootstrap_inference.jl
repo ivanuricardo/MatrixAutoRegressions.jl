@@ -5,7 +5,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
                        shock_idx::AbstractVector=[1,1],
                        ident::Symbol=:reduced,
                        alpha::Float64=0.05,
-                       shortcut::Bool=true)
+                       shortcut::Bool=true,
+                       precomputed_bias=nothing)
     require_fitted(model)
     p, obs = model.p, model.obs
     n1, n2 = model.dims
@@ -15,7 +16,11 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     vec_residuals = vectorize(U)
 
     # Step 1a: bias-correct the original estimate
-    b_hat = bias(model, bias_method)
+    b_hat = if precomputed_bias === nothing
+        bias(model, bias_method)
+    else
+        precomputed_bias
+    end
 
     # Step 1b: enforce stationarity via shrinkage
     C_bc = enforce_stationarity(model.C, b_hat, n, p)

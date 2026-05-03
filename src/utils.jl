@@ -9,6 +9,19 @@ function matricize(data::AbstractMatrix{T}, n1::Int, n2::Int) where T
     return reshape(data, n1, n2, obs)
 end
 
+function matricize!(out::AbstractArray{T,3}, vec_data::AbstractMatrix{T}, n1, n2) where T
+    n = n1 * n2
+    obs = size(vec_data, 2)
+    for t in 1:obs
+        for j in 1:n2
+            for i in 1:n1
+                out[i, j, t] = vec_data[(j-1)*n1 + i, t]
+            end
+        end
+    end
+    return out
+end
+
 """
     make_companion(B::AbstractMatrix{T}) where {T}
     

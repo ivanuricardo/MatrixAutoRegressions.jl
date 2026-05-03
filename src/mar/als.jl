@@ -127,8 +127,8 @@ function als(
         track_obj[i] = abs(obj - obj_old)
 
         if track_obj[i] < tol
-            A = [@view Astack[:, (i-1)*n1+1 : i*n1] for i in 1:p]
-            B = [@view Bstack[:, (i-1)*n2+1 : i*n2] for i in 1:p]
+            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
+            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             track_obj = track_obj[.!isnan.(track_obj)]
             return (; A, B, track_obj, obj, num_iter)
         end

@@ -12,6 +12,7 @@ function update_Sigma1(
     n1, n2, obs = size(data)
     obs_eff = obs - p
     Sigma1 = zeros(T, n1, n1)
+    Sigma2_chol = cholesky(Symmetric(Sigma2))
 
     @inbounds for t in 1:obs_eff
         resp = data[:, :, t + p]
@@ -22,7 +23,7 @@ function update_Sigma1(
         end
 
         residual = resp - pred
-        Sigma1 += (residual / Sigma2) * residual'
+        Sigma1 += (residual / Sigma2_chol) * residual'
     end
 
     return Sigma1 / (n2 * obs_eff)
@@ -40,6 +41,7 @@ function update_Sigma2(
     n1, n2, obs = size(data)
     obs_eff = obs - p
     Sigma2 = zeros(T, n2, n2)
+    Sigma1_chol = cholesky(Symmetric(Sigma1))
 
     @inbounds for t in 1:obs_eff
         resp = data[:, :, t + p]
@@ -50,7 +52,7 @@ function update_Sigma2(
         end
 
         residual = resp - pred
-        Sigma2 += (residual' / Sigma1) * residual
+        Sigma2 += (residual' / Sigma1_chol) * residual
     end
 
     return Sigma2 / (n1 * obs_eff)
@@ -85,33 +87,37 @@ function mle(
         num_iter += 1
         obj_old = copy(obj)
 
-        Astack = update_A(resp, pred, Bstack; Sigma2=Sigma2)
-        Bstack = update_B(resp, pred, Astack; Sigma1=Sigma1)
+        Sigma2_chol = cholesky(Symmetric(Sigma2))
+        Sigma1_chol = cholesky(Symmetric(Sigma1))
+        Astack = update_A(resp, pred, Bstack; Sigma2=Sigma2_chol)
+        Bstack = update_B(resp, pred, Astack; Sigma1=Sigma1_chol)
 
         Astack, Bstack = normalize_slices(Astack, Bstack)
 
+        A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
+        B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
+
         Sigma1 = update_Sigma1(data, A, B, Sigma2)
         Sigma2 = update_Sigma2(data, A, B, Sigma1)
-
-        obj = mle_objective(data, A, B, Sigma1, Sigma2)
 
         Sigma1, Sigma2 = normalize_slices(Sigma1, Sigma2)
 
         Sigma1 = Symmetric((Sigma1 + Sigma1')/2)
         Sigma2 = Symmetric((Sigma2 + Sigma2')/2)
 
+        obj = mle_objective(data, A, B, Sigma1, Sigma2)
         track_obj[i] = abs(obj - obj_old)
 
         if track_obj[i] < tol
-            A = [@view Astack[:, (i-1)*n1+1 : i*n1] for i in 1:p]
-            B = [@view Bstack[:, (i-1)*n2+1 : i*n2] for i in 1:p]
+            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
+            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             track_obj = track_obj[.!isnan.(track_obj)]
             return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
         end
 
         if i == maxiter
-            A = [@view Astack[:, (i-1)*n1+1 : i*n1] for i in 1:p]
-            B = [@view Bstack[:, (i-1)*n2+1 : i*n2] for i in 1:p]
+            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
+            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             @warn "Reached maximum number of iterations"
             return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
         end

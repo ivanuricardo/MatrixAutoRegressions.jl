@@ -105,8 +105,15 @@ end
 
     @test obj_est < obj_true
 
-    # Checking max iter
-    results = als(data, A_init, B_init; maxiter=2, tol=1e-30)
+    # Checking maxiter branch returns valid slices for p=2
+    results_max = als(data, A_init, B_init; maxiter=2, tol=1e-30, warn=false)
+    @test length(results_max.A) == p
+    @test length(results_max.B) == p
+    @test size(results_max.A[1]) == (3, 3)
+    @test size(results_max.A[2]) == (3, 3)
+    @test size(results_max.B[1]) == (4, 4)
+    @test size(results_max.B[2]) == (4, 4)
+    @test results_max.num_iter == 2
 
 end
 

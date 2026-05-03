@@ -51,8 +51,13 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     # Step 3: percentile intervals
     lo = alpha / 2
     hi = 1 - lo
-    ci_lower = mapslices(x -> quantile(x, lo), irf_store; dims=3)[:,:,1]
-    ci_upper = mapslices(x -> quantile(x, hi), irf_store; dims=3)[:,:,1]
+    ci_lower = zeros(n, hmax + 1)
+    ci_upper = zeros(n, hmax + 1)
+    for i in 1:n, j in 1:(hmax + 1)
+        v = @view irf_store[i, j, :]
+        ci_lower[i, j] = quantile(v, lo)
+        ci_upper[i, j] = quantile(v, hi)
+    end
 
     # Point IRFs from bias-corrected model
     bc_model = deepcopy(model)

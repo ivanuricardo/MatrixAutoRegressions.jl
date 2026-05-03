@@ -33,14 +33,3 @@ function bias_correction!(model::MAR, method::BiasCorrection)
     model.C = [model.C[j] - b[j] for j in 1:model.p]
     return model
 end
-
-# function bias_correction!(model::MAR, method::BiasCorrection)
-#     require_fitted(model)
-#     b = bias(model, method)
-#     C_corrected = [model.C[j] - b[j] for j in 1:model.p]
-#     A, B, C = projection(C_corrected, model.dims)
-#     model.A = A
-#     model.B = B
-#     model.C = C
-#     return model
-# end

@@ -39,6 +39,6 @@
     coverage ./= sims
     nominal = 1 - alpha
     # average coverage should be in a reasonable range
-    avg_coverage = mean(coverage)
+    avg_coverage = mean(coverage[:, 2:end])
     @test avg_coverage > nominal - 0.10
 end

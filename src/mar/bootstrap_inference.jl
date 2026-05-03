@@ -6,6 +6,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
                        ident::Symbol=:reduced,
                        alpha::Float64=0.05,
                        shortcut::Bool=true,
+                       project::Bool=true,
                        precomputed_bias=nothing)
     require_fitted(model)
     p, obs = model.p, model.obs
@@ -23,7 +24,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     end
 
     # Step 1b: enforce stationarity via shrinkage
-    C_bc = enforce_stationarity(model.C, b_hat, n, p)
+    kron_dims = project ? model.dims : nothing
+    C_bc = enforce_stationarity(model.C, b_hat, n, p; dims=kron_dims)
 
     # Step 2a: bootstrap from the bias-corrected DGP
     irf_store = zeros(n, hmax + 1, boot_runs)
@@ -38,7 +40,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
         b_star = shortcut ? b_hat : bias(boot_model, bias_method)
 
         # Step 2b: enforce stationarity on the replicate
-        C_star_bc = enforce_stationarity(boot_model.C, b_star, n, p)
+        C_star_bc = enforce_stationarity(boot_model.C, b_star, n, p; dims=kron_dims)
 
         boot_model.C = C_star_bc
         irf_star = reduced_form_irf(boot_model; hmax=hmax,

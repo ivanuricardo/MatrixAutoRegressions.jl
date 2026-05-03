@@ -8,10 +8,14 @@ is achieved. Returns the (possibly shrunk) corrected coefficients.
 """
 function enforce_stationarity(C_hat::Vector{<:AbstractMatrix},
                               bias_mats::Vector{<:AbstractMatrix},
-                              n::Int, p::Int)
+                              n::Int, p::Int;
+                              dims::Union{Nothing,Tuple{Int,Int}}=nothing)
     δ = 1.0
     while δ > 0.0
         C_corrected = [C_hat[j] - δ * bias_mats[j] for j in 1:p]
+        if dims !== nothing
+            _, _, C_corrected = projection(C_corrected, dims)
+        end
         A_big = hcat(C_corrected...)
         comp = make_companion(A_big)
         max_mod = maximum(abs.(eigvals(comp)))
@@ -20,7 +24,6 @@ function enforce_stationarity(C_hat::Vector{<:AbstractMatrix},
         end
         δ -= 0.01
     end
-    # If even δ = 0 doesn't work, return the uncorrected estimate
     return copy(C_hat)
 end
 
@@ -43,13 +46,18 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
                        shock_idx::Int=1,
                        ident::Symbol=:reduced,
                        alpha::Float64=0.05,
-                       shortcut::Bool=true)
+                       shortcut::Bool=true,
+                       precomputed_bias=nothing)
     require_fitted(model)
     n, p, obs = model.n, model.p, model.obs
     U = model.residuals
 
     # Step 1a: bias-correct the original estimate
-    b_hat = bias(model, bias_method)
+    b_hat = if precomputed_bias === nothing
+        bias(model, bias_method)
+    else
+        precomputed_bias
+    end
 
     # Step 1b: enforce stationarity via shrinkage
     C_bc = enforce_stationarity(model.C, b_hat, n, p)

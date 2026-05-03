@@ -5,25 +5,33 @@ function update_Sigma1(
     B::Vector{<:AbstractMatrix{T}}, 
     Sigma2::AbstractMatrix,
 ) where T
-
     p = length(A)
     @assert length(B) == p "length(A) and length(B) must match"
-
     n1, n2, obs = size(data)
     obs_eff = obs - p
     Sigma1 = zeros(T, n1, n1)
     Sigma2_chol = cholesky(Symmetric(Sigma2))
 
+    pred = zeros(T, n1, n2)
+    residual = zeros(T, n1, n2)
+    tmp_AX = zeros(T, n1, n2)
+    tmp_resS2 = zeros(T, n1, n2)
+
     @inbounds for t in 1:obs_eff
         resp = data[:, :, t + p]
 
-        pred = zero(resp)
+        fill!(pred, zero(T))
         @inbounds for i in 1:p
-            pred .+= A[i] * data[:, :, t + p - i] * B[i]'
+            X_t = data[:, :, t + p - i]
+            mul!(tmp_AX, A[i], X_t)
+            mul!(pred, tmp_AX, B[i]', one(T), one(T))
         end
 
-        residual = resp - pred
-        Sigma1 += (residual / Sigma2_chol) * residual'
+        residual .= resp .- pred
+
+        tmp_resS2 .= residual
+        rdiv!(tmp_resS2, Sigma2_chol)
+        mul!(Sigma1, tmp_resS2, residual', one(T), one(T))
     end
 
     return Sigma1 / (n2 * obs_eff)
@@ -35,24 +43,32 @@ function update_Sigma2(
     B::Vector{<:AbstractMatrix{T}}, 
     Sigma1::AbstractMatrix,
 ) where T
-
     p = length(A)
-
     n1, n2, obs = size(data)
     obs_eff = obs - p
     Sigma2 = zeros(T, n2, n2)
     Sigma1_chol = cholesky(Symmetric(Sigma1))
 
+    pred = zeros(T, n1, n2)
+    residual = zeros(T, n1, n2)
+    tmp_AX = zeros(T, n1, n2)
+    tmp_resS1 = zeros(T, n2, n1)
+
     @inbounds for t in 1:obs_eff
         resp = data[:, :, t + p]
 
-        pred = zero(resp)
+        fill!(pred, zero(T))
         @inbounds for i in 1:p
-            pred .+= A[i] * data[:, :, t + p - i] * B[i]'
+            X_t = data[:, :, t + p - i]
+            mul!(tmp_AX, A[i], X_t)
+            mul!(pred, tmp_AX, B[i]', one(T), one(T))
         end
 
-        residual = resp - pred
-        Sigma2 += (residual' / Sigma1_chol) * residual
+        residual .= resp .- pred
+
+        tmp_resS1 .= residual'
+        rdiv!(tmp_resS1, Sigma1_chol)
+        mul!(Sigma2, tmp_resS1, residual, one(T), one(T))
     end
 
     return Sigma2 / (n1 * obs_eff)

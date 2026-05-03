@@ -105,6 +105,9 @@ end
 
     @test obj_est < obj_true
 
+    # Checking max iter
+    results = als(data, A_init, B_init; maxiter=2, tol=1e-30)
+
 end
 
 @testset "als algorithm correctness" begin

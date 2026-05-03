@@ -40,8 +40,10 @@ function update_A(resp::AbstractArray{T},
     obs = size(resp, 3)
 
     for t in 1:obs
-        A_num += (resp[:, :, t] / Sigma2) * B * pred[:, :, t]'
-        A_den += (pred[:, :, t] * B' / Sigma2) * B * pred[:, :, t]'
+        Rt = @view resp[:, :, t]
+        Pt = @view pred[:, :, t]
+        A_num += (Rt / Sigma2) * B * Pt'
+        A_den += (Pt * B' / Sigma2) * B * Pt'
     end
 
     return A_num / A_den
@@ -58,8 +60,10 @@ function update_B(resp::AbstractArray{T},
     obs = size(resp, 3)
 
     for t in 1:obs
-        B_num += (resp[:, :, t]' / Sigma1) * A * pred[:, :, t]
-        B_den += (pred[:, :, t]' * A' / Sigma1) * A * pred[:, :, t]
+        Rt = @view resp[:, :, t]
+        Pt = @view pred[:, :, t]
+        B_num += (Rt' / Sigma1) * A * Pt
+        B_den += (Pt' * A' / Sigma1) * A * Pt
     end
 
     return B_num / B_den
@@ -133,8 +137,8 @@ function als(
             if warn
                 @warn "Reached maximum number of iterations"
             end
-            A = [view(Astack, :, :, k) for k in 1:p]
-            B = [view(Bstack, :, :, k) for k in 1:p]
+            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
+            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             return (; A, B, track_obj, obj, num_iter)
         end
 

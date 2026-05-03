@@ -34,16 +34,30 @@ function update_A(resp::AbstractArray{T},
                   B::AbstractVecOrMat{T};
                   Sigma2=I) where T
     n1 = size(resp, 1)
+    n2 = size(resp, 2)
     p = Int(size(pred, 1) / n1)
-    A_num = zeros(T, n1, n1 * p)
-    A_den = zeros(T, n1 * p, n1 * p)
+    n1p = n1 * p
+    n2p = n2 * p
+
+    A_num = zeros(T, n1, n1p)
+    A_den = zeros(T, n1p, n1p)
     obs = size(resp, 3)
 
+    S2invB = Sigma2 \ B  # I \ B just returns B
+    BtS2invB = B' * S2invB
+
+    tmp1 = zeros(T, n1, n2p)
+    tmp2 = zeros(T, n1p, n2p)
+
     for t in 1:obs
-        Rt = @view resp[:, :, t]
-        Pt = @view pred[:, :, t]
-        A_num += (Rt / Sigma2) * B * Pt'
-        A_den += (Pt * B' / Sigma2) * B * Pt'
+        Rt = resp[:, :, t]
+        Pt = pred[:, :, t]
+
+        mul!(tmp1, Rt, S2invB)
+        mul!(A_num, tmp1, Pt', one(T), one(T))
+
+        mul!(tmp2, Pt, BtS2invB)
+        mul!(A_den, tmp2, Pt', one(T), one(T))
     end
 
     return A_num / A_den
@@ -53,17 +67,31 @@ function update_B(resp::AbstractArray{T},
                   pred::AbstractArray{T},
                   A::AbstractVecOrMat{T};
                   Sigma1=I) where T
+    n1 = size(resp, 1)
     n2 = size(resp, 2)
     p = Int(size(pred, 2) / n2)
-    B_num = zeros(T, n2, n2 * p)
-    B_den = zeros(T, n2 * p, n2 * p)
+    n1p = n1 * p
+    n2p = n2 * p
+
+    B_num = zeros(T, n2, n2p)
+    B_den = zeros(T, n2p, n2p)
     obs = size(resp, 3)
 
+    S1invA = Sigma1 \ A
+    AtS1invA = A' * S1invA
+
+    tmp1 = zeros(T, n2, n1p)
+    tmp2 = zeros(T, n2p, n1p)
+
     for t in 1:obs
-        Rt = @view resp[:, :, t]
-        Pt = @view pred[:, :, t]
-        B_num += (Rt' / Sigma1) * A * Pt
-        B_den += (Pt' * A' / Sigma1) * A * Pt
+        Rt = resp[:, :, t]
+        Pt = pred[:, :, t]
+
+        mul!(tmp1, Rt', S1invA)
+        mul!(B_num, tmp1, Pt, one(T), one(T))
+
+        mul!(tmp2, Pt', AtS1invA)
+        mul!(B_den, tmp2, Pt, one(T), one(T))
     end
 
     return B_num / B_den

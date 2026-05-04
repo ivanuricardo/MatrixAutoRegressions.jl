@@ -169,6 +169,7 @@ function simulate_two_term_mar(
     n1::Int = 3,
     n2::Int = 4,
     eta::Real = 0.0,
+    persistence::Real = 0.5,
     A1::Union{Nothing, AbstractMatrix} = nothing,
     B1::Union{Nothing, AbstractMatrix} = nothing,
     A2::Union{Nothing, AbstractMatrix} = nothing,
@@ -196,7 +197,7 @@ function simulate_two_term_mar(
     end
 
     # The vectorized coefficient: C = 0.5*kron(B1,A1) + 0.5*η*kron(B2,A2)
-    C = 0.5 * kron(B1, A1) + 0.5 * eta * kron(B2, A2)
+    C = persistence * kron(B1, A1) + persistence * eta * kron(B2, A2)
 
     max_eig = maximum(abs.(eigvals(C)))
     if max_eig >= 1.0

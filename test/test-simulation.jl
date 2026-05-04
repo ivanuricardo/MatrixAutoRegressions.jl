@@ -156,3 +156,55 @@ end
         out = generate_mar_coefs(n1, n2; maxiter=2)
     end
 end
+
+@testset "simulate_two_term_mar" begin
+
+    # Basic output structure
+    res = simulate_two_term_mar(100; n1=3, n2=2, eta=0.0)
+    @test size(res.Y) == (3, 2, 100)
+    @test size(res.A1) == (3, 3)
+    @test size(res.B1) == (2, 2)
+    @test size(res.A2) == (3, 3)
+    @test size(res.B2) == (2, 2)
+    @test size(res.C) == (6, 6)
+    @test res.eta == 0.0
+
+    # eta = 0 means C = 0.5 * kron(B1, A1)
+    res0 = simulate_two_term_mar(100; n1=3, n2=2, eta=0.0)
+    @test res0.C ≈ 0.5 * kron(res0.B1, res0.A1)
+
+    # eta > 0 adds second term
+    res1 = simulate_two_term_mar(100; n1=3, n2=2, eta=0.3)
+    expected_C = 0.5 * kron(res1.B1, res1.A1) + 0.5 * 0.3 * kron(res1.B2, res1.A2)
+    @test res1.C ≈ expected_C
+
+    # Spectral radius of coefficient matrices should be 1
+    @test maximum(abs.(eigvals(res1.A1))) ≈ 1.0
+    @test maximum(abs.(eigvals(res1.B1))) ≈ 1.0
+    @test maximum(abs.(eigvals(res1.A2))) ≈ 1.0
+    @test maximum(abs.(eigvals(res1.B2))) ≈ 1.0
+
+    # Stochastic: consecutive observations differ
+    @test any(res1.Y[:, :, 2] .!= res1.Y[:, :, 3])
+
+    # User-supplied coefficients
+    A1 = [1.0 0.0; 0.0 0.5; 0.0 0.0]  # not square, should we test square?
+    A1 = [0.5 0.0 0.0; 0.0 0.3 0.0; 0.0 0.0 0.2]
+    B1 = [0.4 0.0; 0.0 0.6]
+    A2 = [0.1 0.0 0.0; 0.0 0.2 0.0; 0.0 0.0 0.3]
+    B2 = [0.3 0.0; 0.0 0.1]
+    res_custom = simulate_two_term_mar(200; n1=3, n2=2, eta=0.5,
+                                        A1=A1, B1=B1, A2=A2, B2=B2)
+    @test res_custom.A1 === A1
+    @test res_custom.B1 === B1
+    @test res_custom.A2 === A2
+    @test res_custom.B2 === B2
+    @test size(res_custom.Y) == (3, 2, 200)
+
+    # Warn if not stationary
+    A1_big = 5.0 * I(3)
+    B1_big = 5.0 * I(2)
+    @test_warn "not stationary" simulate_two_term_mar(50; n1=3, n2=2, eta=0.0,
+                                                       A1=A1_big, B1=B1_big)
+
+end

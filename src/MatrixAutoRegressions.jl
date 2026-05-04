@@ -104,6 +104,7 @@ include("./simulation.jl")
 export generate_mar_coefs
 export generate_var_coefs
 export simulate_mar
+export simulate_two_term_mar
 export simulate_var
 
 include("./mar/irfs.jl")

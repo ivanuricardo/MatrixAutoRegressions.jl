@@ -53,7 +53,7 @@ function simulate_mar(
     Sigma1::Union{Nothing, AbstractMatrix} = nothing,
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 500,
-    snr::Real = 0.7,
+    snr::Real = 1.0,
     maxiter::Int = 1000,
 )
     if A === nothing || B === nothing
@@ -124,7 +124,7 @@ function simulate_var(
     C::Union{Nothing, Vector{<:AbstractMatrix}} = nothing,
     Sigma::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 500,
-    snr::Real = 0.7,
+    snr::Real = 1.0,
     maxiter::Int = 1000,
 )
     if C === nothing
@@ -162,4 +162,67 @@ function simulate_var(
     sorted_eigs = var_eigvals(C)
 
     return (; Y, C, Sigma, sorted_eigs)
+end
+
+function simulate_two_term_mar(
+    obs::Int;
+    n1::Int = 3,
+    n2::Int = 4,
+    eta::Real = 0.0,
+    A1::Union{Nothing, AbstractMatrix} = nothing,
+    B1::Union{Nothing, AbstractMatrix} = nothing,
+    A2::Union{Nothing, AbstractMatrix} = nothing,
+    B2::Union{Nothing, AbstractMatrix} = nothing,
+    Sigma1::Union{Nothing, AbstractMatrix} = nothing,
+    Sigma2::Union{Nothing, AbstractMatrix} = nothing,
+    burnin::Int = 500,
+)
+    # Generate coefficient matrices with spectral radius 1 if not provided
+    if A1 === nothing
+        A1 = randn(n1, n1)
+        A1 = A1 / maximum(abs.(eigvals(A1)))  # spectral radius = 1
+    end
+    if B1 === nothing
+        B1 = randn(n2, n2)
+        B1 = B1 / maximum(abs.(eigvals(B1)))
+    end
+    if A2 === nothing
+        A2 = randn(n1, n1)
+        A2 = A2 / maximum(abs.(eigvals(A2)))
+    end
+    if B2 === nothing
+        B2 = randn(n2, n2)
+        B2 = B2 / maximum(abs.(eigvals(B2)))
+    end
+
+    # The vectorized coefficient: C = 0.5*kron(B1,A1) + 0.5*η*kron(B2,A2)
+    C = 0.5 * kron(B1, A1) + 0.5 * eta * kron(B2, A2)
+
+    max_eig = maximum(abs.(eigvals(C)))
+    if max_eig >= 1.0
+        @warn "Process is not stationary: max eigenvalue = $max_eig"
+    end
+
+    # Default covariance
+    if Sigma1 === nothing
+        Sigma1 = Matrix{Float64}(I, n1, n1)
+    end
+    if Sigma2 === nothing
+        Sigma2 = Matrix{Float64}(I, n2, n2)
+    end
+
+    total_obs = obs + burnin
+    Y = zeros(n1, n2, total_obs)
+    matrix_normal = MatrixNormal(zeros(n1, n2), Sigma1, Sigma2)
+    errs = rand(matrix_normal, total_obs)
+
+    for t in 2:total_obs
+        Y[:, :, t] = 0.5 * A1 * Y[:, :, t-1] * B1' +
+                     0.5 * eta * A2 * Y[:, :, t-1] * B2' +
+                     errs[t]
+    end
+
+    Y = Y[:, :, burnin+1:end]
+
+    return (; Y, A1, B1, A2, B2, C, Sigma1, Sigma2, eta, max_eig)
 end

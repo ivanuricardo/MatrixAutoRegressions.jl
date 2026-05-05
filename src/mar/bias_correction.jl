@@ -13,7 +13,7 @@ function bias(model::MAR, method::Bootstrap)
         Y_star = simulate_bootstrap_sample(C_hat, U, data_vec, p, obs, n)
         if method.restricted
             Y_star_mat = matricize(Y_star, n1, n2)
-            boot_model = MAR(Y_star_mat; p=p)
+            boot_model = MAR(Y_star_mat; p=p, maxiter=model.maxiter, tol=model.tol)
             fit!(boot_model)
             boot_C = boot_model.C
         else

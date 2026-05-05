@@ -33,7 +33,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
         Y_star = simulate_bootstrap_sample(C_bc, vec_residuals, vec_data,
                                            p, obs, n)
         matrix_data = matricize(Y_star, n1, n2)
-        boot_model = MAR(matrix_data; p=p)
+        boot_model = MAR(matrix_data; p=p, maxiter=model.maxiter, tol=model.tol)
         fit!(boot_model)
 
         # estimate bias of this replicate

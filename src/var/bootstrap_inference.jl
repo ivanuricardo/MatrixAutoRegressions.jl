@@ -7,9 +7,9 @@ multiplying δ (starting at 1, decreasing by 0.01) until stationarity
 is achieved. Returns the (possibly shrunk) corrected coefficients.
 """
 function enforce_stationarity(C_hat::Vector{<:AbstractMatrix},
-                              bias_mats::Vector{<:AbstractMatrix},
-                              n::Int, p::Int;
+                              bias_mats::Vector{<:AbstractMatrix}; p::Int=1,
                               dims::Union{Nothing,Tuple{Int,Int}}=nothing)
+    n = size(C_hat[1], 1)
     δ = 1.0
     while δ > 0.0
         C_corrected = [C_hat[j] - δ * bias_mats[j] for j in 1:p]

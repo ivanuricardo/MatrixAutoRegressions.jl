@@ -15,19 +15,19 @@ function structure_lagged_data(data::AbstractArray; p::Int=1)
 
 end
 
-#=function structure_lagged_data(data::AbstractArray; p::Int=1)=#
-#=    n1, n2, obs = size(data)=#
-#=    structured_data = zeros(n1*p, n2*p, obs-1)=#
-#=    structured_data[1:n1, 1:n2, 1:obs-1] .= data[:, :, 1:end-1]=#
-#=    for i in 1:(p-1)=#
-#=        first_idx = (n1*i+1):n1*(i+1)=#
-#=        second_idx = (n2*i+1):n2*(i+1)=#
-#=        prepared_data = data[:, :, 1:end-1]=#
-#=        structured_data[first_idx, second_idx, 1:obs-1] .= prepared_data=#
-#=    end=#
-#=    return structured_data=#
-#==#
-#=end=#
+# function structure_lagged_data(data::AbstractArray; p::Int=1)
+#    n1, n2, obs = size(data)
+#    structured_data = zeros(n1*p, n2*p, obs-1)
+#    structured_data[1:n1, 1:n2, 1:obs-1] .= data[:, :, 1:end-1]
+#    for i in 1:(p-1)
+#        first_idx = (n1*i+1):n1*(i+1)
+#        second_idx = (n2*i+1):n2*(i+1)
+#        prepared_data = data[:, :, 1:end-1]
+#        structured_data[first_idx, second_idx, 1:obs-1] .= prepared_data
+#    end
+#    return structured_data
+#
+# end
 
 function update_A(resp::AbstractArray{T},
                   pred::AbstractArray{T},

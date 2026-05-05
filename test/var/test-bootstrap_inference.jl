@@ -6,7 +6,7 @@
     @testset "already stationary — no shrinkage" begin
         C_hat = [0.5 * I(n)]
         bias_mats = [0.1 * I(n)]
-        C_corrected = enforce_stationarity(C_hat, bias_mats, n, p)
+        C_corrected = enforce_stationarity(C_hat, bias_mats; p)
         # bias is small, corrected should equal C_hat - bias exactly (δ = 1)
         @test C_corrected[1] ≈ C_hat[1] - bias_mats[1]
     end
@@ -15,7 +15,7 @@
         C_hat = [0.8 * I(n)]
         # a bias so large that C_hat - bias has roots outside unit circle
         bias_mats = [-0.5 * I(n)]  # corrected would be 1.3*I
-        C_corrected = enforce_stationarity(C_hat, bias_mats, n, p)
+        C_corrected = enforce_stationarity(C_hat, bias_mats; p)
         # result must be stationary
         A_big = hcat(C_corrected...)
         comp = make_companion(A_big)
@@ -28,7 +28,7 @@
         # C_hat itself is already on the boundary
         C_hat = [1.0 * I(n)]
         bias_mats = [zeros(n, n)]
-        C_corrected = enforce_stationarity(C_hat, bias_mats, n, p)
+        C_corrected = enforce_stationarity(C_hat, bias_mats; p)
         @test C_corrected[1] ≈ C_hat[1]
     end
 
@@ -36,7 +36,7 @@
         p2 = 2
         C_hat = [0.5 * I(n), 0.2 * I(n)]
         bias_mats = [0.05 * I(n), 0.02 * I(n)]
-        C_corrected = enforce_stationarity(C_hat, bias_mats, n, p2)
+        C_corrected = enforce_stationarity(C_hat, bias_mats; p=p2)
         A_big = hcat(C_corrected...)
         comp = make_companion(A_big)
         @test maximum(abs.(eigvals(comp))) < 1.0

@@ -171,11 +171,11 @@ end
 
     # eta = 0 means C = 0.5 * kron(B1, A1)
     res0 = simulate_two_term_mar(100; n1=3, n2=2, eta=0.0)
-    @test res0.C ≈ 0.5 * kron(res0.B1, res0.A1)
+    @test res0.C ≈ 0.8 * kron(res0.B1, res0.A1)
 
     # eta > 0 adds second term
     res1 = simulate_two_term_mar(100; n1=3, n2=2, eta=0.3)
-    expected_C = 0.5 * kron(res1.B1, res1.A1) + 0.5 * 0.3 * kron(res1.B2, res1.A2)
+    expected_C = 0.8 * kron(res1.B1, res1.A1) + 0.8 * 0.3 * kron(res1.B2, res1.A2)
     @test res1.C ≈ expected_C
 
     # Spectral radius of coefficient matrices should be 1

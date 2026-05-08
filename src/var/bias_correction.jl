@@ -57,16 +57,19 @@ function bias(model::VAR, ::Analytical)
     return [-b_top[:, (j-1)*n+1 : j*n] / obs for j in 1:p]
 end
 
+# From a random starting point
 function simulate_bootstrap_sample(C_hat::Vector{<:AbstractMatrix},
                                    U::Matrix{Float64},
                                    data_vec::Matrix{Float64},
                                    p::Int,
                                    obs::Int,
                                    n::Int)
+    U_centered = U .- mean(U, dims=2)
     boot_idx = rand(1:obs, obs)
-    U_star = U[:, boot_idx]
+    U_star = U_centered[:, boot_idx]
     Y_star = zeros(n, obs + p)
-    Y_star[:, 1:p] .= data_vec[:, 1:p]
+    start = rand(1:(obs))
+    Y_star[:, 1:p] .= data_vec[:, start:start+p-1]
     for t in (p+1):(obs+p)
         y_t = zeros(n)
         for j in 1:p

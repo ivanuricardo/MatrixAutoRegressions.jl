@@ -80,7 +80,7 @@ function mle(
     B::Vector{<:AbstractMatrix},
     Sigma1::AbstractMatrix,
     Sigma2::AbstractMatrix;
-    maxiter::Int=100,
+    maxiter::Int=500,
     tol::Real=1e-6,
     ) where T
 
@@ -141,7 +141,7 @@ function mle(
 end
 
 function flipflop_covariance(X::AbstractArray;
-    maxiter::Int=100,
+    maxiter::Int=500,
     tol::Real=1e-6,
     sigma1::Union{Nothing, Matrix{Float64}}=nothing,
     sigma2::Union{Nothing, Matrix{Float64}}=nothing,

@@ -1,4 +1,11 @@
 
+function _logdet_sigma(model::AbstractARModel)
+    S = Symmetric(model.Sigma)
+    isposdef(S) || return nothing
+    ch = cholesky(S)
+    return 2 * sum(log, diag(ch.L))
+end
+
 function residuals(model::AbstractARModel)
     return calculate_residuals(model)
 end
@@ -59,8 +66,8 @@ function aic(model::AbstractARModel)
     if model.method == :mle
         return 2 * k - 2 * loglikelihood(model)
     end
-    ch = cholesky(model.Sigma)
-    logdetterm = 2 * sum(log, diag(ch.L))
+    logdetterm = _logdet_sigma(model)
+    logdetterm === nothing && return Inf
     return 2 * k + obs * logdetterm
 end
 
@@ -70,8 +77,8 @@ function bic(model::AbstractARModel)
     if model.method == :mle
         return k * log(obs) - 2 * loglikelihood(model)
     end
-    ch = cholesky(model.Sigma)
-    logdetterm = 2 * sum(log, diag(ch.L))
+    logdetterm = _logdet_sigma(model)
+    logdetterm === nothing && return Inf
     return k * log(obs) + obs * logdetterm
 end
 
@@ -81,8 +88,8 @@ function hqc(model::AbstractARModel)
     if model.method == :mle
         return k * 2 * log(log(obs)) - 2 * loglikelihood(model)
     end
-    ch = cholesky(model.Sigma)
-    logdetterm = 2 * sum(log, diag(ch.L))
+    logdetterm = _logdet_sigma(model)
+    logdetterm === nothing && return Inf
     return 2 * k * log(log(obs)) + obs * logdetterm
 end
 

@@ -83,7 +83,7 @@ function hqc(model::AbstractARModel)
     end
     ch = cholesky(model.Sigma)
     logdetterm = 2 * sum(log, diag(ch.L))
-    return k * log(log(obs)) + obs * logdetterm
+    return 2 * k * log(log(obs)) + obs * logdetterm
 end
 
 function ic(model::AbstractARModel; ic_type::Symbol=:bic)

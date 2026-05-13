@@ -29,7 +29,7 @@ This package provides:
 
 ```julia
 using Pkg
-Pkg.add(url="<repository-url>")
+Pkg.add(url="https://github.com/ivanuricardo/MatrixAutoRegressions.jl")
 ```
 
 ## Quick Start

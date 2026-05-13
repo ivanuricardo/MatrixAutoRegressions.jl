@@ -121,10 +121,9 @@ MatrixAutoRegressions.loglikelihood(m::DummyMLE) = m.ll
 @testset "Information criteria: basic formula checks" begin
     # --- MLE branch matches explicit formulas ---
     m = DummyMLE(100, :mle, zeros(1,1), 10, -123.456)
-    expected_aic = 2*m.k - 2*loglikelihood(m)
-    expected_bic = m.k * log(m.obs) - 2*loglikelihood(m)
-    expected_hqc = m.k * 2 * log(log(m.obs)) - 2*loglikelihood(m)
-
+    expected_aic = 2 * m.k - 2 * loglikelihood(m)
+    expected_bic = m.k * log(m.obs) - 2 * loglikelihood(m)
+    expected_hqc = m.k * 2 * log(log(m.obs)) - 2 * loglikelihood(m)
     @test aic(m) == expected_aic
     @test bic(m) == expected_bic
     @test hqc(m) == expected_hqc
@@ -133,13 +132,11 @@ MatrixAutoRegressions.loglikelihood(m::DummyMLE) = m.ll
     # Use identity covariance for clarity: logdetterm == 0 so AIC == 2k
     sigma = Matrix{Float64}(I, 4, 4)
     mn = DummyNonMLE(50, :als, sigma, 7)
-
     ch = cholesky(mn.Sigma)
     logdetterm = 2 * sum(log, diag(ch.L))
     expected_aic_nonmle = 2 * mn.k + mn.obs * logdetterm
     expected_bic_nonmle = mn.k * log(mn.obs) + mn.obs * logdetterm
-    expected_hqc_nonmle = mn.k * log(log(mn.obs)) + mn.obs * logdetterm
-
+    expected_hqc_nonmle = 2 * mn.k * log(log(mn.obs)) + mn.obs * logdetterm
     @test aic(mn) == expected_aic_nonmle
     @test bic(mn) == expected_bic_nonmle
     @test hqc(mn) == expected_hqc_nonmle
@@ -148,7 +145,7 @@ MatrixAutoRegressions.loglikelihood(m::DummyMLE) = m.ll
     @test isapprox(logdetterm, 0.0; atol=1e-14)
     @test aic(mn) == 2 * mn.k
     @test bic(mn) == mn.k * log(mn.obs)
-    @test hqc(mn) == mn.k * log(log(mn.obs))
+    @test hqc(mn) == 2 * mn.k * log(log(mn.obs))
 end
 
 @testset "IC dispatcher and invalid type" begin

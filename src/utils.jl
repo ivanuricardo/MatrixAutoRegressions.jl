@@ -235,8 +235,9 @@ function large_commutation_matrix(A::AbstractMatrix, n1::Integer, p::Integer)
 end
 
 make_model(data, ::Type{VAR}; p) = VAR(data; p)
-make_model(data, ::Type{MAR}; p, method=:mle, maxiter=1000, tol=1e-6) = 
+function make_model(data, ::Type{MAR}; p, method=:mle, maxiter=1000, tol=1e-6)
     MAR(data; p, method, maxiter, tol)
+end
 
 function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
     # fit the provided (largest-p) model once
@@ -258,7 +259,10 @@ function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
                isa(model, MAR) ? fixed_data[:, :, start:end] :
                error("Unsupported model type: $(typeof(model))")
 
-        model_tmp = make_model(data, typeof(model); p=p)
+        model_tmp = make_model(data, typeof(model); p,
+                               method=model.method,
+                               maxiter=model.maxiter,
+                               tol=model.tol)
         fit!(model_tmp)
 
         ic_tmp = ic(model_tmp; ic_type=ic_type)

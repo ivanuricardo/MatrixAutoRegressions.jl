@@ -4,7 +4,7 @@ Random.seed!(20250923)
 
 @benchmark begin
     dgp = simulate_mar(1000; n1=3, n2=4, p=1)
-    model = MAR(dgp.Y; p=1, method=:ls)
+    model = MAR(dgp.Y; p=1, method=:als)
     fit!(model)
 end
 
@@ -23,8 +23,8 @@ microbenchmark(
 )
 """
 
-# Median R code time:     75.5 ms
-# Median Julia code time: 16.3 ms
-# Mean R code time:       80.5 ms
-# Mean Julia code time:   16.8 ms
+# Median R code time:     126.2 ms
+# Median Julia code time: 37.6 ms
+# Mean R code time:       136.8 ms
+# Mean Julia code time:   37.4 ms
 

@@ -5,159 +5,171 @@
 
 # MatrixAutoRegressions.jl
 
-A lightweight Julia package for Matrix Autoregressive (MAR) models. This README introduces the main types and functions, shows quick examples for simulation and estimation (OLS projection, Alternating Least Squares — ALS, and Maximum Likelihood — MLE), and provides notes on stability and common utilities.
+A Julia package for estimation, inference, and impulse response analysis of Matrix Autoregressive (MAR) models, as introduced by [Chen, Xiao, and Yang (2021)](https://doi.org/10.1016/j.jeconom.2020.07.015).
 
----
+## Overview
 
-## Highlights
+Matrix-valued time series arise when each observation is a matrix rather than a vector — for example, a panel of macroeconomic indicators across countries observed over time. The MAR model exploits this matrix structure through a bilinear formulation:
 
-* `MAR` type: store MAR model configuration, parameters and data.
-* Estimation methods: `:proj` (nearest-Kronecker projection of OLS VAR), `:ls` (alternating least squares), `:mle` (iterative MLE alternating A/B and covariances).
-* Simulation: `simulate_mar` to generate synthetic MAR data.
-* Helpers: `projection`, `als`, `mle`, `generate_mar_coefs`, `isstable`, `vectorize`/`matricize`, `residuals`, and more.
+$$\mathbf{Y}_t = \sum_{j=1}^p \mathbf{A}_j \mathbf{Y}_{t-j} \mathbf{B}_j^\top + \mathbf{E}_t$$
 
----
+which is equivalent to a restricted VAR with Kronecker-structured coefficient matrices $\mathbf{C}_j = \mathbf{B}_j \otimes \mathbf{A}_j$. This achieves substantial parameter reduction — $(N_1^2 + N_2^2)p$ parameters instead of $(N_1 N_2)^2 p$ for an unrestricted VAR — while maintaining interpretability along both the row and column dimensions.
+
+This package provides:
+
+- **MAR and VAR model estimation** via projection, alternating least squares (ALS), and maximum likelihood (MLE)
+- **Impulse response functions** (reduced-form and Cholesky-identified)
+- **Asymptotic inference** for IRFs via the delta method, accounting for Kronecker structure and normalization constraints
+- **Bootstrap-after-bootstrap inference** extending [Kilian (1998)](https://doi.org/10.1162/003465398557465) to the MAR setting, with nearest-Kronecker-product projection
+- **Bias correction** using both analytical (Pope–Kilian) and bootstrap approaches
+- **Model selection** via AIC, BIC, and HQC
+- **Simulation** utilities for MAR, VAR, and misspecified (two-term) MAR processes
 
 ## Installation
 
-This README assumes the package is available as `MatrixAutoRegressions`. In the REPL:
-
 ```julia
-] dev /path/to/repo
-using MatrixAutoRegressions
+using Pkg
+Pkg.add(url="<repository-url>")
 ```
 
----
-
-## Quick examples
-
-All examples below are self-contained and runnable in the REPL or a script.
-
-### 1) Simulate a MAR(1) and fit with ALS (least squares)
+## Quick Start
 
 ```julia
-using MatrixAutoRegressions, LinearAlgebra
+using MatrixAutoRegressions
 
-# simulate a MAR(1) with n1=3, n2=4 and 300 observations
-res = simulate_mar(300; n1=3, n2=4, p=1)
-Y = res.Y         # data array: (n1, n2, obs)
-A_true = res.A    # true A slice(s)
-B_true = res.B    # true B slice(s)
+# Simulate a MAR(1) process: 3×4 matrix observations, 200 time points
+sim = simulate_mar(200; n1=3, n2=4, p=1)
 
-# build MAR model (method = :ls for alternating least squares)
-model = MAR(Y; p=1, method=:ls)
+# Fit a MAR model via MLE
+model = MAR(sim.Y; p=1, method=:mle)
 fit!(model)
 
-println(model)            # brief summary printed by Base.show
-resid = residuals(model)  # residuals array
+# Compute impulse responses with delta-method standard errors
+results = irf(model; hmax=20, shock_idx=[1, 1])
+results.irfs    # point IRFs
+results.irf_se  # standard errors
 
-# Compare to truth (example for p=1)
-println("||A_est - A_true|| = ", norm(model.A[1] - A_true[1]))
-println("||B_est - B_true|| = ", norm(model.B[1] - B_true[1]))
+# Bootstrap confidence intervals (Kilian-style, with Kronecker projection)
+boot = irf_bootstrap(model, Bootstrap(bias_runs=500);
+                     boot_runs=2000, hmax=20, shock_idx=[1, 1])
+boot.ci_lower   # lower confidence band
+boot.ci_upper   # upper confidence band
 ```
 
-### 2) Fast projection (nearest Kronecker product) from OLS VAR
+## Models
+
+### MAR — Matrix Autoregressive Model
 
 ```julia
-using MatrixAutoRegressions
-res = simulate_mar(300; n1=3, n2=4, p=1)
-Y = res.Y
-A_true = res.A
-B_true = res.B
-
-# Use projection of OLS VAR directly
-model_proj = MAR(Y; p=1, method=:proj)
-fit!(model_proj)
-
-# model_proj.A and model_proj.B are the projection estimators
-println("Projected A size: ", size(model_proj.A[1]))
-```
-
-### 3) Maximum likelihood estimation (iterative)
-
-```julia
-using MatrixAutoRegressions
-res = simulate_mar(300; n1=3, n2=4, p=1)
-Y = res.Y
-A_true = res.A
-B_true = res.B
-
-# Start from projection initialization; set method=:mle to run the MLE routine
-model_mle = MAR(Y; p=1, method=:mle, maxiter=50, tol=1e-8)
-fit!(model_mle)
-
-# MLE returns fitted A/B and Sigma1/Sigma2
-println("iters used: ", model_mle.iters)
-println("Sigma1 size: ", size(model_mle.Sigma1))
-```
-
-### 4) Generate stable MAR coefficients
-
-```julia
-using MatrixAutoRegressions
-
-coefs = generate_mar_coefs(3, 4; p=1)
-A_gen, B_gen = coefs.A, coefs.B
-println("stability eigenvalues: ", coefs.sorted_eigs)
-println("isstable? ", isstable(A_gen, B_gen))
-```
-
-### 5) Use ALS directly if you already have starting slices
-
-```julia
-using MatrixAutoRegressions
-
-coefs = generate_mar_coefs(3, 4; p=1)
-println("stability eigenvalues: ", coefs.sorted_eigs)
-println("isstable? ", isstable(coefs.A, coefs.B))
-
-dgp = simulate_mar(300; n1=3, n2=4, p=1, A=coefs.A, B=coefs.B)
-
-# Suppose A0 and B0 are initial guesses (vectors of matrices)
-results = als(dgp.Y, coefs.A, coefs.B; maxiter=300, tol=1e-7)
-A_est, B_est = results.A, results.B
-```
-
-### 6) Forecasting with a fitted MAR model
-
-You can generate multi-step-ahead forecasts after fitting a MAR model.
-Use `train_test_split` to hold out the last `h` observations for evaluation, then call `predict(model; h)`.
-
-```julia
-using MatrixAutoRegressions, LinearAlgebra
-
-# simulate a MAR(2) with n1=3, n2=4 and 200 observations
-sim = simulate_mar(200; n1=3, n2=4, p=2, snr=1000)
-model = MAR(sim.Y, p=2)
+# Create and fit
+model = MAR(data; p=1, method=:mle)  # data is an n1 × n2 × T array
 fit!(model)
 
-# split into training and test sets (last 5 observations are test)
-train_data, test_data = train_test_split(model; h=5)
-model.data = train_data
-
-# forecast the next 5 steps
-Yhat = predict(model; h=5)
-
-println("Forecast array size: ", size(Yhat))   # (3, 4, 5)
-println("Forecast error norm: ", norm(Yhat - test_data))
+# Available estimation methods
+# :proj  — Nearest Kronecker product projection of OLS estimates
+# :als   — Alternating least squares
+# :mle   — Maximum likelihood with Kronecker-structured covariance
 ```
-`Yhat` has shape `(n1, n2, h)` and contains the forecasted matrices.
-You can compare directly to the held-out test data, or use it for downstream analysis.
 
----
+### VAR — Vector Autoregressive Model
 
-## Practical notes & tips
+```julia
+# Create and fit
+model = VAR(data; p=1)  # data is an n × T matrix
+fit!(model)
+```
 
-* **Normalization**: Internally A slices are normalized (Frobenius norm) and B adjusted accordingly to reduce scale identifiability.
-* **Initialization**: Good initialization speeds convergence. The package uses OLS + NKP projection as defaults.
-* **Stability**: Generated coefficient sets aim to be stable; always check `isstable(A, B)` before trusting long-run simulations.
-* **Convergence**: If ALS/MLE reaches `maxiter`, an `@warn` is emitted and the current estimates are returned. Tweak `maxiter` and `tol` if needed.
+## Impulse Response Analysis
 
----
+### Point Estimates and Asymptotic Inference
 
-## Contributing
+```julia
+# MAR: shock_idx is [row, column] of the matrix entry receiving the shock
+results = irf(model; hmax=20, shock_idx=[1, 1])
 
-PRs are welcome. Please open an issue if you spot numerical instability or surprising behavior.
+# VAR: shock_idx is a scalar index
+results = irf(var_model; hmax=20, shock_idx=1)
 
----
+# Cholesky-identified structural IRFs
+results = irf(model; hmax=20, shock_idx=[1, 1], ident=:cholesky)
+```
 
+### Bootstrap Inference
+
+The package implements the bootstrap-after-bootstrap procedure with optional Kronecker projection (`project=true`), which ensures that bias-corrected coefficients retain the MAR structure:
+
+```julia
+# Analytical bias correction (Pope–Kilian closed-form, VAR only)
+boot = irf_bootstrap(var_model, Analytical(); boot_runs=2000, hmax=20, shock_idx=1)
+
+# Bootstrap bias correction
+boot = irf_bootstrap(model, Bootstrap(bias_runs=500);
+                     boot_runs=2000, hmax=20, shock_idx=[1, 1],
+                     project=true)  # project onto Kronecker space
+```
+
+## Simulation
+
+```julia
+# MAR process with specified signal-to-noise ratio
+sim = simulate_mar(200; n1=3, n2=4, p=1, snr=1.0)
+
+# VAR process
+sim = simulate_var(200; n=12, p=1)
+
+# Two-term MAR (for misspecification studies):
+# C = persistence * (B₁ ⊗ A₁) + persistence * η * (B₂ ⊗ A₂)
+sim = simulate_two_term_mar(200; n1=3, n2=4, eta=0.1, persistence=0.8)
+```
+
+## Model Diagnostics
+
+```julia
+# Information criteria
+aic(model)
+bic(model)
+hqc(model)
+
+# Automatic lag selection
+best_model, ic_table = fit_and_select!(model; ic_type=:bic)
+
+# Log-likelihood (MLE only)
+loglikelihood(model)
+
+# Specification test (Kronecker structure)
+p_value = specification_test(data)
+
+# Coefficient standard errors
+se = std_errors(model)
+```
+
+## Bias Correction
+
+```julia
+# Analytical (Pope–Kilian, VAR only)
+corrected = bias_correction(var_model, Analytical())
+
+# Bootstrap (works for both MAR and VAR)
+corrected = bias_correction(model, Bootstrap(bias_runs=500))
+
+# In-place
+bias_correction!(model, Bootstrap(bias_runs=500))
+```
+
+## Key Utilities
+
+| Function | Description |
+|---|---|
+| `make_companion(C)` | Build the VAR companion matrix |
+| `isstable(A, B)` | Check stability of a MAR process |
+| `mar_eigvals(A, B)` | Eigenvalues of the MAR companion matrix |
+| `projection(Φ, dims)` | Nearest Kronecker product projection |
+| `normalize_slices(A, B)` | Apply $\|\mathbf{A}_j\|_F = 1$ normalization |
+| `vectorize(data)` | Reshape 3D array to 2D (vec each time slice) |
+| `matricize(data, n1, n2)` | Reshape 2D back to 3D |
+| `commutation_matrix(m, n)` | Commutation matrix $K_{m,n}$ |
+
+## References
+
+- Chen, R., Xiao, H., & Yang, D. (2021). Autoregressive models for matrix-valued time series. *Journal of Econometrics*, 222(1), 539–560.
+- Kilian, L. (1998). Small-sample confidence intervals for impulse response functions. *Review of Economics and Statistics*, 80(2), 218–230.

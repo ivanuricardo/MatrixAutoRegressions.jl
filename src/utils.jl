@@ -427,7 +427,8 @@ function plot_irf_grid(result;
                        shock_idx::Vector{Int}=[1,1],
                        true_irfs=nothing,
                        title::String="",
-                       figsize=(250 * length(col_labels), 180 * length(row_labels)))
+                       transpose_grid::Bool=false,
+                       figsize=nothing)
     
     n1 = length(row_labels)
     n2 = length(col_labels)
@@ -435,25 +436,36 @@ function plot_irf_grid(result;
     horizons = 0:hmax
     has_ci = hasproperty(result, :ci_lower)
 
+    nrows = transpose_grid ? n2 : n1
+    ncols = transpose_grid ? n1 : n2
+    rlabels = transpose_grid ? col_labels : row_labels
+    clabels = transpose_grid ? row_labels : col_labels
+
+    if figsize === nothing
+        figsize = (250 * ncols, 180 * nrows)
+    end
+
     fig = Figure(; size=figsize)
     if !isempty(title)
-        Label(fig[0, :], title; fontsize=14, font=:bold)
+        Label(fig[0, :], title; fontsize=20, font=:bold)
     end
 
     for j in 1:n2, i in 1:n1
         idx = i + (j - 1) * n1
-        ax = Axis(fig[i, j];
-                  ylabel = j == 1 ? row_labels[i] : "",
-                  xlabel = i == n1 ? "h" : "",
-                  title  = i == 1 ? col_labels[j] : "",
-                  titlesize = 12,
-                  xlabelsize = 10, ylabelsize = 10,
-                  xticklabelsize = 8, yticklabelsize = 8)
+        gi, gj = transpose_grid ? (j, i) : (i, j)
+
+        ax = Axis(fig[gi, gj];
+                  ylabel = gj == 1 ? rlabels[gi] : "",
+                  xlabel = gi == nrows ? "h" : "",
+                  title  = gi == 1 ? clabels[gj] : "",
+                  titlesize = 18,
+                  xlabelsize = 16, ylabelsize = 16,
+                  xticklabelsize = 13, yticklabelsize = 13)
 
         hlines!(ax, [0]; color=:gray, linewidth=0.5, linestyle=:dash)
 
         if has_ci
-            band!(ax, collect(horizons), 
+            band!(ax, collect(horizons),
                   result.ci_lower[idx, :], result.ci_upper[idx, :];
                   color=(:steelblue, 0.2))
         end
@@ -466,7 +478,6 @@ function plot_irf_grid(result;
                    color=:black, linewidth=2, linestyle=:dash)
         end
     end
-
     return fig
 end
 

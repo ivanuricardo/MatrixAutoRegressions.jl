@@ -240,31 +240,32 @@ function make_model(data, ::Type{MAR}; p, method=:mle, maxiter=1000, tol=1e-6)
 end
 
 function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
-    # fit the provided (largest-p) model once
     fit!(model)
     fixed_data = model.data
     p_max = model.p
     ps = collect(0:p_max)
     ics = fill(NaN, length(ps))
 
-    # record the ic for the provided model (p_max)
     ic_best = ic(model; ic_type=ic_type)
     ics[end] = ic_best
     model_best = model
 
-    # evaluate smaller-lag models using the same effective sample
     for p in (p_max-1):-1:0
         start = p_max - p + 1
         data = isa(model, VAR) ? fixed_data[:, start:end] :
                isa(model, MAR) ? fixed_data[:, :, start:end] :
                error("Unsupported model type: $(typeof(model))")
 
-        model_tmp = make_model(data, typeof(model); p,
-                               method=model.method,
-                               maxiter=model.maxiter,
-                               tol=model.tol)
-        fit!(model_tmp)
+        model_tmp = if model isa MAR
+            make_model(data, MAR; p,
+                       method=model.method,
+                       maxiter=model.maxiter,
+                       tol=model.tol)
+        else
+            make_model(data, VAR; p)
+        end
 
+        fit!(model_tmp)
         ic_tmp = ic(model_tmp; ic_type=ic_type)
         ics[p+1] = ic_tmp
 
@@ -273,7 +274,7 @@ function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
             model_best = model_tmp
         end
     end
-    return model_best, hcat(ps, ics)
+    return (; best_model=model_best, ic_table=hcat(ps, ics))
 end
 
 """
@@ -418,6 +419,55 @@ end
 
 function calculate_residuals(model::VAR)
     return model.residuals
+end
+
+function plot_irf_grid(result;
+                       row_labels::Vector{String},
+                       col_labels::Vector{String},
+                       shock_idx::Vector{Int}=[1,1],
+                       true_irfs=nothing,
+                       title::String="",
+                       figsize=(250 * length(col_labels), 180 * length(row_labels)))
+    
+    n1 = length(row_labels)
+    n2 = length(col_labels)
+    hmax = size(result.irfs, 2) - 1
+    horizons = 0:hmax
+    has_ci = hasproperty(result, :ci_lower)
+
+    fig = Figure(; size=figsize)
+    if !isempty(title)
+        Label(fig[0, :], title; fontsize=14, font=:bold)
+    end
+
+    for j in 1:n2, i in 1:n1
+        idx = i + (j - 1) * n1
+        ax = Axis(fig[i, j];
+                  ylabel = j == 1 ? row_labels[i] : "",
+                  xlabel = i == n1 ? "h" : "",
+                  title  = i == 1 ? col_labels[j] : "",
+                  titlesize = 12,
+                  xlabelsize = 10, ylabelsize = 10,
+                  xticklabelsize = 8, yticklabelsize = 8)
+
+        hlines!(ax, [0]; color=:gray, linewidth=0.5, linestyle=:dash)
+
+        if has_ci
+            band!(ax, collect(horizons), 
+                  result.ci_lower[idx, :], result.ci_upper[idx, :];
+                  color=(:steelblue, 0.2))
+        end
+
+        lines!(ax, collect(horizons), result.irfs[idx, :];
+               color=:steelblue, linewidth=2)
+
+        if true_irfs !== nothing
+            lines!(ax, collect(horizons), true_irfs[idx, :];
+                   color=:black, linewidth=2, linestyle=:dash)
+        end
+    end
+
+    return fig
 end
 
 function show(io::IO, model::MAR)

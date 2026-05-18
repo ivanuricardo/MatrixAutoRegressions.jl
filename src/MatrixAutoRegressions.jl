@@ -6,6 +6,7 @@ using Statistics
 using Distributions
 using Random
 using SparseArrays
+using CairoMakie
 
 import Distributions: loglikelihood
 import Base: show
@@ -98,6 +99,7 @@ export vectorize_kronecker
 export number_parameters
 export Q_matrix
 export specification_test
+export plot_irf_grid
 export define_c
 
 include("./simulation.jl")

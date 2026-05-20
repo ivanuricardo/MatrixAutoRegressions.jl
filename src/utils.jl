@@ -429,7 +429,7 @@ function plot_irf_grid(result;
                        title::String="",
                        transpose_grid::Bool=false,
                        figsize=nothing)
-    
+
     n1 = length(row_labels)
     n2 = length(col_labels)
     hmax = size(result.irfs, 2) - 1
@@ -445,9 +445,9 @@ function plot_irf_grid(result;
         figsize = (250 * ncols, 180 * nrows)
     end
 
-    fig = Figure(; size=figsize)
+    fig = Figure(; size=figsize);
     if !isempty(title)
-        Label(fig[0, :], title; fontsize=20, font=:bold)
+        Label(fig[0, 1:ncols], title; fontsize=20, font=:bold, halign=:center)
     end
 
     for j in 1:n2, i in 1:n1
@@ -458,6 +458,7 @@ function plot_irf_grid(result;
                   ylabel = gj == 1 ? rlabels[gi] : "",
                   xlabel = gi == nrows ? "h" : "",
                   title  = gi == 1 ? clabels[gj] : "",
+                  titlealign = :center,
                   titlesize = 18,
                   xlabelsize = 16, ylabelsize = 16,
                   xticklabelsize = 13, yticklabelsize = 13)
@@ -477,6 +478,9 @@ function plot_irf_grid(result;
             lines!(ax, collect(horizons), true_irfs[idx, :];
                    color=:black, linewidth=2, linestyle=:dash)
         end
+    end
+    for j in 1:ncols
+        colsize!(fig.layout, j, Relative(1/ncols))
     end
     return fig
 end

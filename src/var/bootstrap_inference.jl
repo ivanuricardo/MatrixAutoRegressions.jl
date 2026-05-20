@@ -51,17 +51,14 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
     require_fitted(model)
     n, p, obs = model.n, model.p, model.obs
     U = model.residuals
-
     # Step 1a: bias-correct the original estimate
     b_hat = if precomputed_bias === nothing
         bias(model, bias_method)
     else
         precomputed_bias
     end
-
     # Step 1b: enforce stationarity via shrinkage
     C_bc = enforce_stationarity(model.C, b_hat; p)
-
     # Step 2a: bootstrap from the bias-corrected DGP
     irf_store = zeros(n, hmax + 1, boot_runs)
     for m in 1:boot_runs
@@ -69,31 +66,43 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
                                            p, obs, n)
         boot_model = VAR(Y_star; p=p)
         fit!(boot_model)
-
         # estimate bias of this replicate
         b_star = shortcut ? b_hat : bias(boot_model, bias_method)
-
         # Step 2b: enforce stationarity on the replicate
         C_star_bc = enforce_stationarity(boot_model.C, b_star; p)
-
         boot_model.C = C_star_bc
+        if ident === :cholesky
+            data = boot_model.data
+            resid = copy(data[:, (p+1):end])
+            for j in 1:p
+                resid .-= C_star_bc[j] * data[:, (p+1-j):(end-j)]
+            end
+            boot_model.residuals = resid
+            boot_model.Sigma = (resid * resid') / size(resid, 2)
+        end
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
                                     shock_idx=shock_idx, ident=ident)
         irf_store[:, :, m] = irf_star
     end
-
     # Step 3: percentile intervals
     lo = alpha / 2
     hi = 1 - lo
     ci_lower = mapslices(x -> quantile(x, lo), irf_store; dims=3)[:,:,1]
     ci_upper = mapslices(x -> quantile(x, hi), irf_store; dims=3)[:,:,1]
-
     # Point IRFs from bias-corrected model
     bc_model = deepcopy(model)
     bc_model.C = C_bc
+    if ident === :cholesky
+        data = bc_model.data
+        resid = copy(data[:, (p+1):end])
+        for j in 1:p
+            resid .-= C_bc[j] * data[:, (p+1-j):(end-j)]
+        end
+        bc_model.residuals = resid
+        bc_model.Sigma = (resid * resid') / size(resid, 2)
+    end
     point_irfs = reduced_form_irf(bc_model; hmax=hmax,
                                   shock_idx=shock_idx, ident=ident)
-
     return (; irfs=point_irfs, ci_lower, ci_upper, irf_store)
 end
 

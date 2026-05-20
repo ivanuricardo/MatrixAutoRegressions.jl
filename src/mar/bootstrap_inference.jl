@@ -41,8 +41,18 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
 
         # Step 2b: enforce stationarity on the replicate
         C_star_bc = enforce_stationarity(boot_model.C, b_star; p, dims=kron_dims)
-
         boot_model.C = C_star_bc
+        if ident === :cholesky
+            A_star, B_star, _ = projection(C_star_bc, model.dims)
+            boot_model.A = A_star
+            boot_model.B = B_star
+            boot_model.residuals = calculate_residuals(boot_model)
+            sig = flipflop_covariance(boot_model.residuals;
+                                       maxiter=model.maxiter, tol=model.tol)
+            boot_model.Sigma1 = Symmetric(sig.sigma1)
+            boot_model.Sigma2 = Symmetric(sig.sigma2)
+            boot_model.Sigma = kron(boot_model.Sigma2, boot_model.Sigma1)
+        end
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
                                     shock_idx=shock_idx, ident=ident)
         irf_store[:, :, m] = irf_star
@@ -62,6 +72,15 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     # Point IRFs from bias-corrected model
     bc_model = deepcopy(model)
     bc_model.C = C_bc
+    A_bc, B_bc, _ = projection(C_bc, model.dims)
+    bc_model.A = A_bc
+    bc_model.B = B_bc
+    bc_model.residuals = calculate_residuals(bc_model)
+    sigma_ests = flipflop_covariance(bc_model.residuals;
+                                      maxiter=model.maxiter, tol=model.tol)
+    bc_model.Sigma1 = Symmetric(sigma_ests.sigma1)
+    bc_model.Sigma2 = Symmetric(sigma_ests.sigma2)
+    bc_model.Sigma = kron(bc_model.Sigma2, bc_model.Sigma1)
     point_irfs = reduced_form_irf(bc_model; hmax=hmax,
                                   shock_idx=shock_idx, ident=ident)
 

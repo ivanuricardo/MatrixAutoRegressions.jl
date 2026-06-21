@@ -143,12 +143,13 @@ function als(
     stall = 0
     patience = 10
     stall_band = 5 * tol
+    coef_band = 5 * tol
 
     num_iter = 0
     converged = false
     for i in 1:maxiter
         num_iter += 1
-        obj_old    = obj
+        obj_old  = obj
         Astack_old = copy(Astack)
         Bstack_old = copy(Bstack)
 
@@ -164,7 +165,8 @@ function als(
         track_obj[i] = rel_obj
 
         converged = rel_obj < tol || rel_coef < tol
-        stall = rel_obj < stall_band ? stall + 1 : 0
+        small_step = rel_obj < stall_band && rel_coef < coef_band
+        stall = small_step ? stall + 1 : 0
         flat_ridge = stall >= patience
 
         if converged || flat_ridge || (i == maxiter)

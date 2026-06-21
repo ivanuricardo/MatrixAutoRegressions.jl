@@ -99,7 +99,8 @@ function mle(
     track_obj = fill(NaN, maxiter)
     stall = 0
     patience = 10  # consecutive stalled iters before we call it a flat ridge
-    stall_band  = 5 * tol  # "small but not converged" zone
+    stall_band = 5 * tol  # "small but not converged" zone
+    coef_band = 5 * tol
 
     num_iter = 0
     converged = false
@@ -133,9 +134,8 @@ function mle(
         track_obj[i] = rel_obj
 
         converged = rel_obj < tol || rel_coef < tol
-
-        # "no meaningful progress" early stop: stuck in the stall band for `patience` iters
-        stall = rel_obj < stall_band ? stall + 1 : 0
+        small_step = rel_obj < stall_band && rel_coef < coef_band   # ← both must be small
+        stall = small_step ? stall + 1 : 0
         flat_ridge = stall >= patience
 
         if converged || flat_ridge || i == maxiter

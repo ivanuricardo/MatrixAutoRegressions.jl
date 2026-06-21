@@ -120,7 +120,7 @@ function als(
     data::AbstractArray{T},
     A::Vector{<:AbstractMatrix},
     B::Vector{<:AbstractMatrix};
-    maxiter::Int=5000,
+    maxiter::Int=1000,
     tol::Real=1e-6,
     Sigma1=I,
     Sigma2=I,

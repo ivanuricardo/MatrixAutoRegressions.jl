@@ -9,7 +9,7 @@ end
 Generate MAR coefficients with the normalization that A has a frobenius norm 
 of one.
 """
-function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=5000)
+function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=1000)
 
     A = Vector{Matrix{Float64}}(undef, p)
     B = Vector{Matrix{Float64}}(undef, p)
@@ -54,7 +54,7 @@ function simulate_mar(
     Sigma2::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 500,
     snr::Real = 1.0,
-    maxiter::Int = 5000,
+    maxiter::Int = 1000,
 )
     if A === nothing || B === nothing
         coefs = generate_mar_coefs(n1, n2; p, maxiter)
@@ -94,7 +94,7 @@ function simulate_mar(
     return (; Y, A, B, C, Sigma1, Sigma2, sorted_eigs)
 end
 
-function generate_var_coefs(n::Int, p::Int; maxiter::Int = 5000)
+function generate_var_coefs(n::Int, p::Int; maxiter::Int = 1000)
     for iter in 1:maxiter
         C = [randn(n, n) * 0.2 for _ in 1:p]  # initial scale
         companion_c = make_companion(C)
@@ -125,7 +125,7 @@ function simulate_var(
     Sigma::Union{Nothing, AbstractMatrix} = nothing,
     burnin::Int = 500,
     snr::Real = 1.0,
-    maxiter::Int = 5000,
+    maxiter::Int = 1000,
 )
     if C === nothing
         C, _ = generate_var_coefs(n, p; maxiter=maxiter)

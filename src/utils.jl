@@ -235,7 +235,7 @@ function large_commutation_matrix(A::AbstractMatrix, n1::Integer, p::Integer)
 end
 
 make_model(data, ::Type{VAR}; p) = VAR(data; p)
-function make_model(data, ::Type{MAR}; p, method=:mle, maxiter=5000, tol=1e-6)
+function make_model(data, ::Type{MAR}; p, method=:mle, maxiter=1000, tol=1e-6)
     MAR(data; p, method, maxiter, tol)
 end
 

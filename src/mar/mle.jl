@@ -97,17 +97,22 @@ function mle(
     Bstack = hcat(B...)
 
     track_obj = fill(NaN, maxiter)
+    stall = 0
+    patience = 10  # consecutive stalled iters before we call it a flat ridge
+    stall_band  = 5 * tol  # "small but not converged" zone
 
     num_iter = 0
+    converged = false
     for i in 1:maxiter
         num_iter += 1
-        obj_old = copy(obj)
+        obj_old = obj
+        Astack_old = copy(Astack)
+        Bstack_old = copy(Bstack)
 
         Sigma2_chol = cholesky(Symmetric(Sigma2))
         Sigma1_chol = cholesky(Symmetric(Sigma1))
         Astack = update_A(resp, pred, Bstack; Sigma2=Sigma2_chol)
         Bstack = update_B(resp, pred, Astack; Sigma1=Sigma1_chol)
-
         Astack, Bstack = normalize_slices(Astack, Bstack)
 
         A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
@@ -115,27 +120,30 @@ function mle(
 
         Sigma1 = update_Sigma1(data, A, B, Sigma2)
         Sigma2 = update_Sigma2(data, A, B, Sigma1)
-
         Sigma1, Sigma2 = normalize_slices(Sigma1, Sigma2)
-
         Sigma1 = Symmetric((Sigma1 + Sigma1')/2)
         Sigma2 = Symmetric((Sigma2 + Sigma2')/2)
 
         obj = mle_objective(data, A, B, Sigma1, Sigma2)
-        track_obj[i] = abs(obj - obj_old)
 
-        if track_obj[i] < tol
+        # scale-free criteria: relative objective change + relative coefficient change
+        rel_obj  = abs(obj - obj_old) / (abs(obj_old) + 1)
+        rel_coef = (norm(Astack - Astack_old) + norm(Bstack - Bstack_old)) /
+                   (norm(Astack_old) + norm(Bstack_old) + 1)
+        track_obj[i] = rel_obj
+
+        converged = rel_obj < tol || rel_coef < tol
+
+        # "no meaningful progress" early stop: stuck in the stall band for `patience` iters
+        stall = rel_obj < stall_band ? stall + 1 : 0
+        flat_ridge = stall >= patience
+
+        if converged || flat_ridge || i == maxiter
             A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
             B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             track_obj = track_obj[.!isnan.(track_obj)]
-            return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
-        end
-
-        if i == maxiter
-            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
-            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
-            @warn "Reached maximum number of iterations"
-            return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter)
+            converged = converged || flat_ridge   # treat ridge as "good enough"
+            return (; A, B, Sigma1, Sigma2, track_obj, obj, num_iter, converged)
         end
     end
 end

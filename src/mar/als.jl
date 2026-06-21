@@ -140,36 +140,43 @@ function als(
     Bstack = hcat(B...)
 
     track_obj = fill(NaN, maxiter)
+    stall = 0
+    patience = 10
+    stall_band = 5 * tol
 
     num_iter = 0
+    converged = false
     for i in 1:maxiter
         num_iter += 1
-        obj_old = copy(obj)
+        obj_old    = obj
+        Astack_old = copy(Astack)
+        Bstack_old = copy(Bstack)
 
         Astack = update_A(resp, pred, Bstack; Sigma2=Sigma2)
         Bstack = update_B(resp, pred, Astack; Sigma1=Sigma1)
-
         Astack, Bstack = normalize_slices(Astack, Bstack)
 
         obj = ls_objective(resp, pred, Astack, Bstack)
-        track_obj[i] = abs(obj - obj_old)
 
-        if track_obj[i] < tol
+        rel_obj  = abs(obj - obj_old) / (abs(obj_old) + 1)
+        rel_coef = (norm(Astack - Astack_old) + norm(Bstack - Bstack_old)) /
+                   (norm(Astack_old) + norm(Bstack_old) + 1)
+        track_obj[i] = rel_obj
+
+        converged = rel_obj < tol || rel_coef < tol
+        stall = rel_obj < stall_band ? stall + 1 : 0
+        flat_ridge = stall >= patience
+
+        if converged || flat_ridge || (i == maxiter)
             A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
             B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
             track_obj = track_obj[.!isnan.(track_obj)]
-            return (; A, B, track_obj, obj, num_iter)
-        end
-
-        if i == maxiter
-            if warn
+            converged = converged || flat_ridge
+            if (i == maxiter) && !converged && warn
                 @warn "Reached maximum number of iterations"
             end
-            A = [@view Astack[:, (k-1)*n1+1 : k*n1] for k in 1:p]
-            B = [@view Bstack[:, (k-1)*n2+1 : k*n2] for k in 1:p]
-            return (; A, B, track_obj, obj, num_iter)
+            return (; A, B, track_obj, obj, num_iter, converged)
         end
-
     end
 
 end

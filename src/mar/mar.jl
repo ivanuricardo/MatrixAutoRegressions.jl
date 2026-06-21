@@ -28,7 +28,7 @@ function MAR(data::AbstractArray;
     A::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
     B::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
     C::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
-    maxiter::Int=1000,
+    maxiter::Int=5000,
     tol::Real=1e-6,
     )
 

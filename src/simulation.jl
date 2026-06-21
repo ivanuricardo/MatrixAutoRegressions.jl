@@ -9,7 +9,7 @@ end
 Generate MAR coefficients with the normalization that A has a frobenius norm 
 of one.
 """
-function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=1000)
+function generate_mar_coefs(n1::Int, n2::Int; p::Int=1, maxiter::Int=5000)
 
     A = Vector{Matrix{Float64}}(undef, p)
     B = Vector{Matrix{Float64}}(undef, p)

@@ -98,7 +98,7 @@ function update_B(resp::AbstractArray{T},
 end
 
 """
-    als(A_init, B_init, resp, pred; maxiter=1000, tol=1e-5)
+    als(A_init, B_init, resp, pred; maxiter=1000, tol=1e-6)
 
 Alternating Least Squares estimation for the MAR(1) model:
 
@@ -121,7 +121,7 @@ function als(
     A::Vector{<:AbstractMatrix},
     B::Vector{<:AbstractMatrix};
     maxiter::Int=1000,
-    tol::Real=1e-5,
+    tol::Real=1e-6,
     Sigma1=I,
     Sigma2=I,
     warn=true,
@@ -141,7 +141,7 @@ function als(
 
     track_obj = fill(NaN, maxiter)
     stall = 0
-    patience = 10
+    patience = 20
     stall_band = 5 * tol
     coef_band = 5 * tol
 

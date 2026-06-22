@@ -81,7 +81,7 @@ function mle(
     Sigma1::AbstractMatrix,
     Sigma2::AbstractMatrix;
     maxiter::Int=1000,
-    tol::Real=1e-5,
+    tol::Real=1e-6,
     ) where T
 
     n1, n2 = size(A[1], 1), size(B[1], 1)
@@ -98,7 +98,7 @@ function mle(
 
     track_obj = fill(NaN, maxiter)
     stall = 0
-    patience = 10  # consecutive stalled iters before we call it a flat ridge
+    patience = 20  # consecutive stalled iters before we call it a flat ridge
     stall_band = 5 * tol  # "small but not converged" zone
     coef_band = 5 * tol
 
@@ -150,7 +150,7 @@ end
 
 function flipflop_covariance(X::AbstractArray;
     maxiter::Int=1000,
-    tol::Real=1e-5,
+    tol::Real=1e-6,
     sigma1::Union{Nothing, Matrix{Float64}}=nothing,
     sigma2::Union{Nothing, Matrix{Float64}}=nothing,
     )

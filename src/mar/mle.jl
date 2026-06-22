@@ -81,7 +81,7 @@ function mle(
     Sigma1::AbstractMatrix,
     Sigma2::AbstractMatrix;
     maxiter::Int=1000,
-    tol::Real=1e-6,
+    tol::Real=1e-5,
     ) where T
 
     n1, n2 = size(A[1], 1), size(B[1], 1)
@@ -150,7 +150,7 @@ end
 
 function flipflop_covariance(X::AbstractArray;
     maxiter::Int=1000,
-    tol::Real=1e-6,
+    tol::Real=1e-5,
     sigma1::Union{Nothing, Matrix{Float64}}=nothing,
     sigma2::Union{Nothing, Matrix{Float64}}=nothing,
     )

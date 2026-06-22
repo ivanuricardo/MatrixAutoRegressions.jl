@@ -10,7 +10,7 @@ Create an un-fitted `MAR` model object from a 3D data array.
 - `B::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}()` — Optional initial guesses for right coefficient matrices.
 - `C::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}()` — Optional initial guesses for intercept matrices.
 - `maxiter::Int=1000` — Maximum iterations for iterative estimation routines.
-- `tol::Real=1e-6` — Convergence tolerance for iterative estimation.
+- `tol::Real=1e-5` — Convergence tolerance for iterative estimation.
 
 # Returns
 A `MAR` struct with the provided fields filled and placeholders (`nothing`) for estimated covariances, residuals, and `iters`. Use `fit!(m)` to estimate parameters.
@@ -29,7 +29,7 @@ function MAR(data::AbstractArray;
     B::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
     C::Vector{<:AbstractMatrix}=Vector{Matrix{Float64}}(),
     maxiter::Int=1000,
-    tol::Real=1e-6,
+    tol::Real=1e-5,
     )
 
     dims = size(data)[1:2]

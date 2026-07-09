@@ -25,10 +25,11 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
 
     # Step 1b: enforce stationarity via shrinkage
     kron_dims = project ? model.dims : nothing
-    C_bc = enforce_stationarity(model.C, b_hat; p, dims=kron_dims)
+    C_bc, delta_hat = enforce_stationarity(model.C, b_hat; p, dims=kron_dims)
 
     # Step 2a: bootstrap from the bias-corrected DGP
     irf_store = zeros(n, hmax + 1, boot_runs)
+    delta_store = zeros(boot_runs)
     for m in 1:boot_runs
         Y_star = simulate_bootstrap_sample(C_bc, vec_residuals, vec_data,
                                            p, obs, n)
@@ -40,7 +41,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
         b_star = shortcut ? b_hat : bias(boot_model, bias_method)
 
         # Step 2b: enforce stationarity on the replicate
-        C_star_bc = enforce_stationarity(boot_model.C, b_star; p, dims=kron_dims)
+        C_star_bc, delta_store[m] = enforce_stationarity(boot_model.C, b_star; p, dims=kron_dims)
         boot_model.C = C_star_bc
         if ident === :cholesky
             A_star, B_star, _ = projection(C_star_bc, model.dims)
@@ -84,5 +85,6 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     point_irfs = reduced_form_irf(bc_model; hmax=hmax,
                                   shock_idx=shock_idx, ident=ident)
 
-    return (; irfs=point_irfs, ci_lower, ci_upper, irf_store)
+    return (; irfs=point_irfs, ci_lower, ci_upper, irf_store, delta_store, 
+              delta=delta_hat)
 end

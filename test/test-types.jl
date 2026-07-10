@@ -179,7 +179,7 @@ end
 
     @test isapprox(aic(n2) - aic(n1), 2 * (n2.k - n1.k))
     @test isapprox(bic(n2) - bic(n1), log(n1.obs) * (n2.k - n1.k))
-    @test isapprox(hqc(n2) - hqc(n1), log(log(n1.obs)) * (n2.k - n1.k))
+    @test isapprox(hqc(n2) - hqc(n1), 2 * log(log(n1.obs)) * (n2.k - n1.k))
 end
 
 @testset "Numeric stability / edge checks" begin

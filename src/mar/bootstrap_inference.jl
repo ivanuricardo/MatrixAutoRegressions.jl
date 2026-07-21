@@ -48,7 +48,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
             boot_model.A = A_star
             boot_model.B = B_star
             boot_model.residuals = calculate_residuals(boot_model)
-            sig = flipflop_covariance(boot_model.residuals;
+            centered_res_boot = boot_model.residuals .- mean(boot_model.residuals, dims = 3)
+            sig = flipflop_covariance(centered_res_boot;
                                        maxiter=model.maxiter, tol=model.tol)
             boot_model.Sigma1 = Symmetric(sig.sigma1)
             boot_model.Sigma2 = Symmetric(sig.sigma2)
@@ -59,7 +60,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
         irf_store[:, :, m] = irf_star
     end
 
-    # Step 3: percentile intervals
+    # Step 3: Efron percentile intervals
     lo = alpha / 2
     hi = 1 - lo
     ci_lower = zeros(n, hmax + 1)
@@ -77,7 +78,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     bc_model.A = A_bc
     bc_model.B = B_bc
     bc_model.residuals = calculate_residuals(bc_model)
-    sigma_ests = flipflop_covariance(bc_model.residuals;
+    centered_res_bc = bc_model.residuals .- mean(bc_model.residuals, dims = 3)
+    sigma_ests = flipflop_covariance(centered_res_bc;
                                       maxiter=model.maxiter, tol=model.tol)
     bc_model.Sigma1 = Symmetric(sigma_ests.sigma1)
     bc_model.Sigma2 = Symmetric(sigma_ests.sigma2)

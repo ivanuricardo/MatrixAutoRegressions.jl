@@ -382,6 +382,33 @@ function calculate_residuals(model::MAR)
     return residuals
 end
 
+"""
+    residuals_from_C(data, C, p)
+
+Residuals of `y_t = Σ_j C_j y_{t-j} + u_t` computed directly from the
+vectorised lag coefficients. Unlike `calculate_residuals`, which works through
+the factors `A` and `B`, this does not assume `C_j` is a Kronecker product, and
+is therefore the correct routine for a bias-corrected DGP that has not been
+projected. When `C_j == kron(B_j, A_j)` the two agree.
+"""
+function residuals_from_C(data::AbstractArray, C::Vector{<:AbstractMatrix}, p::Int)
+    n1, n2 = size(data, 1), size(data, 2)
+    obs_eff = size(data, 3) - p
+
+    resp = data[:, :, (p+1):end]
+    resp = resp .- mean(resp, dims=3)
+    residuals = copy(resp)
+
+    @inbounds for j in 1:p
+        pred = data[:, :, (p+1-j):(end-j)]
+        pred = pred .- mean(pred, dims=3)
+        for t in 1:obs_eff
+            residuals[:, :, t] .-= reshape(C[j] * vec(@view pred[:, :, t]), n1, n2)
+        end
+    end
+    return residuals
+end
+
 function _specification_test(data::AbstractArray)
     mar_model = MAR(data; method=:proj)
     fit!(mar_model)

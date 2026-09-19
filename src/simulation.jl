@@ -95,8 +95,9 @@ function simulate_mar(
 end
 
 function generate_var_coefs(n::Int, p::Int; maxiter::Int = 1000)
+    scale = 1.0  # initial scale
     for iter in 1:maxiter
-        C = [randn(n, n) * 0.2 for _ in 1:p]  # initial scale
+        C = [randn(n, n) * scale for _ in 1:p]
         companion_c = make_companion(C)
         evals = eigvals(companion_c)
         rho = maximum(abs.(evals))
@@ -104,15 +105,8 @@ function generate_var_coefs(n::Int, p::Int; maxiter::Int = 1000)
             sorted_eigs = var_eigvals(C)
             return (; C, sorted_eigs)
         end
-        # rescale toward stability
-        scale = 0.95 / rho
-        for j in 1:p
-            C[j] .*= scale
-        end
-        if isstable(C; mineigen = 0.1)
-            sorted_eigs = var_eigvals(C)
-            return (; C, sorted_eigs)
-        end
+        # decrease scale
+        scale *= 0.9
     end
     error("generate_var_coefs: failed to produce a stable VAR in $maxiter iterations")
 end

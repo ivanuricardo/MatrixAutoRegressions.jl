@@ -7,6 +7,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
                        alpha::Float64=0.05,
                        shortcut::Bool=true,
                        project::Bool=true,
+                       block::Int=1,
                        precomputed_bias=nothing)
     require_fitted(model)
     p, obs = model.p, model.obs
@@ -44,7 +45,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
         # Step 2b: enforce stationarity on the replicate
         C_star_bc, delta_store[m] = enforce_stationarity(boot_model.C, b_star; p, dims=kron_dims)
         boot_model.C = C_star_bc
-        if ident === :cholesky
+        if ident === :cholesky || ident === :block_cholesky
             if project
                 A_star, B_star, _ = projection(C_star_bc, model.dims)
                 boot_model.A = A_star
@@ -59,7 +60,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
             boot_model.Sigma = kron(boot_model.Sigma2, boot_model.Sigma1)
         end
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
-                                    shock_idx=shock_idx, ident=ident)
+                                    shock_idx=shock_idx, ident=ident, block=block)
         irf_store[:, :, m] = irf_star
     end
 
@@ -90,7 +91,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     bc_model.Sigma2 = Symmetric(sigma_ests.sigma2)
     bc_model.Sigma = kron(bc_model.Sigma2, bc_model.Sigma1)
     point_irfs = reduced_form_irf(bc_model; hmax=hmax,
-                                  shock_idx=shock_idx, ident=ident)
+                                  shock_idx=shock_idx, ident=ident, block=block)
 
     return (; irfs=point_irfs, ci_lower, ci_upper, irf_store, delta_store, 
               delta=delta_hat)

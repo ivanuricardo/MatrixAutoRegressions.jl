@@ -109,11 +109,42 @@ function get_cholesky_innovation_matrix(model::AbstractARModel)
     end
 end
 
+# helper: return P such that Σ_u = P * P' via the block Cholesky of Billio et al.
+# Σ is partitioned with a leading block of size `block`, and P = L * blkdiag(L_A, L_S),
+# where L is the unit lower triangular LDU factor and L_A, L_S are the Cholesky
+# factors of A and of the Schur complement S = C - B'A⁻¹B
+function get_block_cholesky_innovation_matrix(model::AbstractARModel; block::Int=1)
+    require_fitted(model)
+    sigma = Symmetric(model.Sigma)
+    n = size(sigma, 1)
+    if block < 1 || block > n
+        throw(ArgumentError("block out of bounds"))
+    end
+    block == n && return Matrix(cholesky(sigma).L)
+
+    first_idx = 1:block
+    second_idx = (block+1):n
+
+    A = Symmetric(sigma[first_idx, first_idx])
+    B = sigma[first_idx, second_idx]
+    C = Symmetric(sigma[second_idx, second_idx])
+
+    LA = cholesky(A).L
+    LS = cholesky(Symmetric(C - B' * (A \ B))).L
+
+    P = zeros(eltype(model.Sigma), n, n)
+    P[first_idx, first_idx] = LA
+    P[second_idx, first_idx] = B' / LA'
+    P[second_idx, second_idx] = LS
+    return P
+end
+
 # Build IRFs to a unit shock in variable `shock_idx`.
 # ident=:reduced (default) -> reduced-form raw innovation
 # ident=:cholesky -> orthogonalized structural shock via Cholesky
 # returns matrix irf where columns are horizons 0..H and rows are variables 1..n
-function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], theta=nothing, ident::Symbol=:reduced)
+function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], theta=nothing,
+                          ident::Symbol=:reduced, block::Int=1)
     require_fitted(model)
     if theta === nothing
         theta = irf_ma(model; hmax=hmax)
@@ -130,14 +161,16 @@ function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], thet
     e = zeros(eltype(theta[1]), n)
     e[vec_shock_idx] = one(eltype(theta[1]))
 
-    # if cholesky identification, map structural unit shock -> reduced-form shock
     if ident === :cholesky
         B = get_cholesky_innovation_matrix(model)
+        e_trans = B * e
+    elseif ident === :block_cholesky
+        B = get_block_cholesky_innovation_matrix(model; block=block)
         e_trans = B * e
     elseif ident === :reduced
         e_trans = e
     else
-        error("Unknown identification scheme: $ident. Valid: :reduced, :cholesky")
+        error("Unknown identification scheme: $ident. Valid: :reduced, :cholesky, :block_cholesky")
     end
 
     irf = zeros(eltype(theta[1]), n, hmax+1)
@@ -147,7 +180,12 @@ function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], thet
     return irf
 end
 
-function irf(model::MAR; hmax::Integer=1, shock_idx::Vector=[1,1], ident::Symbol=:reduced)
+function irf(model::MAR; hmax::Integer=1, shock_idx::Vector=[1,1],
+             ident::Symbol=:reduced, block::Int=1)
+    obs = model.obs
+    theta = irf_ma(model; hmax)
+    irfs = reduced_form_irf(model; hmax=hmax, shock_idx=shock_idx, theta=theta,
+                            ident=ident, block=block)
     obs = model.obs
     theta = irf_ma(model; hmax)
     irfs = reduced_form_irf(model; hmax=hmax, shock_idx=shock_idx, theta=theta, ident=ident)

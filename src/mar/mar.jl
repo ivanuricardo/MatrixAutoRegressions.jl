@@ -35,8 +35,9 @@ function MAR(data::AbstractArray;
     dims = size(data)[1:2]
     eff_obs = size(data, 3) - p
     iters = nothing
+    centered = data .- mean(data, dims = 3)
 
-    return MAR(A, B, C, p, nothing, nothing, nothing, dims, eff_obs, method, data, maxiter, tol, iters, nothing)
+    return MAR(A, B, C, p, nothing, nothing, nothing, dims, eff_obs, method, centered, maxiter, tol, iters, nothing)
 end
 
 function fit!(model::MAR)

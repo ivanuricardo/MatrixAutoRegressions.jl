@@ -8,6 +8,7 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
                        shortcut::Bool=true,
                        project::Bool=true,
                        block::Int=1,
+                       shock_weights::Union{Nothing,AbstractVector}=nothing,
                        precomputed_bias=nothing)
     require_fitted(model)
     p, obs = model.p, model.obs
@@ -60,7 +61,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
             boot_model.Sigma = kron(boot_model.Sigma2, boot_model.Sigma1)
         end
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
-                                    shock_idx=shock_idx, ident=ident, block=block)
+                                    shock_idx=shock_idx, ident=ident, block=block,
+                                    shock_weights=shock_weights)
         irf_store[:, :, m] = irf_star
     end
 
@@ -91,7 +93,8 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
     bc_model.Sigma2 = Symmetric(sigma_ests.sigma2)
     bc_model.Sigma = kron(bc_model.Sigma2, bc_model.Sigma1)
     point_irfs = reduced_form_irf(bc_model; hmax=hmax,
-                                  shock_idx=shock_idx, ident=ident, block=block)
+                                  shock_idx=shock_idx, ident=ident, block=block,
+                                  shock_weights=shock_weights)
 
     return (; irfs=point_irfs, ci_lower, ci_upper, irf_store, delta_store, 
               delta=delta_hat)

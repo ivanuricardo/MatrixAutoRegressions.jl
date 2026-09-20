@@ -113,30 +113,45 @@ end
 # Σ is partitioned with a leading block of size `block`, and P = L * blkdiag(L_A, L_S),
 # where L is the unit lower triangular LDU factor and L_A, L_S are the Cholesky
 # factors of A and of the Schur complement S = C - B'A⁻¹B
-function get_block_cholesky_innovation_matrix(model::AbstractARModel; block::Int=1)
-    require_fitted(model)
-    sigma = Symmetric(model.Sigma)
+function block_cholesky(sigma::AbstractMatrix, block::Int)
     n = size(sigma, 1)
     if block < 1 || block > n
         throw(ArgumentError("block out of bounds"))
     end
-    block == n && return Matrix(cholesky(sigma).L)
+    block == n && return Matrix(cholesky(Symmetric(sigma)).L)
 
     first_idx = 1:block
     second_idx = (block+1):n
 
-    A = Symmetric(sigma[first_idx, first_idx])
-    B = sigma[first_idx, second_idx]
-    C = Symmetric(sigma[second_idx, second_idx])
+    S_aa = Symmetric(sigma[first_idx, first_idx])
+    S_ab = sigma[first_idx, second_idx]
+    S_bb = Symmetric(sigma[second_idx, second_idx])
 
-    LA = cholesky(A).L
-    LS = cholesky(Symmetric(C - B' * (A \ B))).L
+    LA = cholesky(S_aa).L
+    W = LA \ S_ab
+    LS = cholesky(Symmetric(S_bb - W' * W)).L
 
-    P = zeros(eltype(model.Sigma), n, n)
+    P = zeros(eltype(sigma), n, n)
     P[first_idx, first_idx] = LA
-    P[second_idx, first_idx] = B' / LA'
+    P[second_idx, first_idx] = W'
     P[second_idx, second_idx] = LS
     return P
+end
+
+get_block_cholesky_innovation_matrix(model::VAR; block::Int=1) =
+    block_cholesky(model.Sigma, block)
+
+function get_block_cholesky_innovation_matrix(model::MAR; block::Int=1)
+    require_fitted(model)
+    n1, _ = model.dims
+    # column-aligned split: Σ = Σ₂ ⊗ Σ₁ gives P = P₂ ⊗ L₁, so the Schur
+    # complement is taken on Σ₂ rather than on the full Σ
+    if block % n1 == 0 && !isnothing(model.Sigma1) && !isnothing(model.Sigma2)
+        L1 = cholesky(Symmetric(model.Sigma1)).L
+        P2 = block_cholesky(model.Sigma2, block ÷ n1)
+        return kron(P2, L1)
+    end
+    return block_cholesky(model.Sigma, block)
 end
 
 # Build IRFs to a unit shock in variable `shock_idx`.
@@ -144,29 +159,38 @@ end
 # ident=:cholesky -> orthogonalized structural shock via Cholesky
 # returns matrix irf where columns are horizons 0..H and rows are variables 1..n
 function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], theta=nothing,
-                          ident::Symbol=:reduced, block::Int=1)
+                          ident::Symbol=:reduced, block::Int=1,
+                          shock_weights::Union{Nothing,AbstractVector}=nothing)
     require_fitted(model)
     if theta === nothing
         theta = irf_ma(model; hmax=hmax)
     end
 
     n1, n2 = model.dims
-    vec_shock_idx = shock_idx[1] + (shock_idx[2] - 1) * n1
     n = size(theta[1], 1)
-    if vec_shock_idx < 1 || vec_shock_idx > n
-        throw(ArgumentError("shock_idx out of bounds"))
+    T = eltype(theta[1])
+
+    # shock vector in reduced-form innovation space
+    e = zeros(T, n)
+    if shock_weights === nothing
+        vec_shock_idx = shock_idx[1] + (shock_idx[2] - 1) * n1
+        (1 <= vec_shock_idx <= n) ||
+            throw(ArgumentError("shock_idx out of bounds"))
+        (ident !== :block_cholesky || vec_shock_idx <= block) ||
+            throw(ArgumentError("shock_idx must lie in the leading block of size $block"))
+        e[vec_shock_idx] = one(T)
+    else
+        ident === :block_cholesky ||
+            throw(ArgumentError("shock_weights requires ident=:block_cholesky"))
+        length(shock_weights) == block ||
+            throw(ArgumentError("shock_weights must have length block = $block"))
+        e[1:block] .= shock_weights
     end
 
-    # unit vector in reduced-form innovation space
-    e = zeros(eltype(theta[1]), n)
-    e[vec_shock_idx] = one(eltype(theta[1]))
-
     if ident === :cholesky
-        B = get_cholesky_innovation_matrix(model)
-        e_trans = B * e
+        e_trans = get_cholesky_innovation_matrix(model) * e
     elseif ident === :block_cholesky
-        B = get_block_cholesky_innovation_matrix(model; block=block)
-        e_trans = B * e
+        e_trans = get_block_cholesky_innovation_matrix(model; block=block) * e
     elseif ident === :reduced
         e_trans = e
     else
@@ -181,14 +205,16 @@ function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], thet
 end
 
 function irf(model::MAR; hmax::Integer=1, shock_idx::Vector=[1,1],
-             ident::Symbol=:reduced, block::Int=1)
+             ident::Symbol=:reduced, block::Int=1,
+             shock_weights::Union{Nothing,AbstractVector}=nothing)
     obs = model.obs
     theta = irf_ma(model; hmax)
     irfs = reduced_form_irf(model; hmax=hmax, shock_idx=shock_idx, theta=theta,
-                            ident=ident, block=block)
-    obs = model.obs
-    theta = irf_ma(model; hmax)
-    irfs = reduced_form_irf(model; hmax=hmax, shock_idx=shock_idx, theta=theta, ident=ident)
+                            ident=ident, block=block, shock_weights=shock_weights)
+
+    if shock_weights !== nothing
+        return (; irfs)
+    end
 
     irf_var = irf_variance(model, theta; hmax=hmax, shock_idx=shock_idx)
     irf_cov = irf_var ./ obs

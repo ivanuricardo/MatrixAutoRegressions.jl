@@ -239,8 +239,37 @@ function make_model(data, ::Type{MAR}; p, method=:mle, maxiter=1000, tol=1e-6)
     MAR(data; p, method, maxiter, tol)
 end
 
-function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
+"""
+    refit_best!(model::MAR)
+
+Refit from a second starting value and keep the higher-likelihood solution.
+The flip-flop in `mle` is a local method whose sweep order is not symmetric in
+the two dimensions, so the transposed problem, which is the same MAR with `A`
+and `B` swapped, supplies a cheap and well-targeted second start.
+"""
+function refit_best!(model::MAR)
+    (model.p == 0 || model.method !== :mle) && return model
+
+    tr = MAR(permutedims(model.data, (2, 1, 3)); p=model.p, method=model.method,
+             maxiter=model.maxiter, tol=model.tol)
+    fit!(tr)
+
+    cand = MAR(model.data; p=model.p, method=model.method,
+               maxiter=model.maxiter, tol=model.tol,
+               A=[copy(b) for b in tr.B], B=[copy(a) for a in tr.A])
+    fit!(cand)
+
+    if loglikelihood(cand) > loglikelihood(model)
+        model.A, model.B, model.C = cand.A, cand.B, cand.C
+        model.Sigma, model.Sigma1, model.Sigma2 = cand.Sigma, cand.Sigma1, cand.Sigma2
+        model.residuals, model.iters = cand.residuals, cand.iters
+    end
+    return model
+end
+
+function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic, restart::Bool=false)
     fit!(model)
+    restart && model isa MAR && refit_best!(model)
     fixed_data = model.data
     p_max = model.p
     ps = collect(0:p_max)
@@ -266,6 +295,7 @@ function fit_and_select!(model::AbstractARModel; ic_type::Symbol=:bic)
         end
 
         fit!(model_tmp)
+        restart && model_tmp isa MAR && refit_best!(model_tmp)
         ic_tmp = ic(model_tmp; ic_type=ic_type)
         ics[p+1] = ic_tmp
 

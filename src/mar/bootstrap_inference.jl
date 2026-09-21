@@ -126,9 +126,14 @@ function irf_bootstrap(model::MAR, bias_method::BiasCorrection;
             boot_model.Sigma2 = Symmetric(sig.sigma2)
             boot_model.Sigma = kron(boot_model.Sigma2, boot_model.Sigma1)
         end
+        # recompute d from this replicate's covariance, so that every draw
+        # describes the same one-unit impact on the leading block
+        sw = impact_weights === nothing ? shock_weights :
+             impact_weights_to_shock(boot_model, impact_weights;
+                                     block=block, mode=impact_mode)
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
                                     shock_idx=shock_idx, ident=ident, block=block,
-                                    shock_weights=shock_weights)
+                                    shock_weights=sw)
         irf_store[:, :, m] = irf_star
     end
 

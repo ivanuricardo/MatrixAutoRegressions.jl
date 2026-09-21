@@ -68,8 +68,9 @@ function simulate_bootstrap_sample(C_hat::Vector{<:AbstractMatrix},
     boot_idx = rand(1:obs, obs)
     U_star = U_centered[:, boot_idx]
     Y_star = zeros(n, obs + p)
-    start = rand(1:(obs))
-    Y_star[:, 1:p] .= data_vec[:, start:start+p-1]
+    # uncomment to start at a random block
+    # start = rand(1:(obs))
+    # Y_star[:, 1:p] .= data_vec[:, start:start+p-1]
     for t in (p+1):(obs+p)
         y_t = zeros(n)
         for j in 1:p

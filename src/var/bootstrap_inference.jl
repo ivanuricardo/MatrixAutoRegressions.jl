@@ -41,6 +41,9 @@ Kilian (1998) bootstrap-after-bootstrap confidence intervals for IRFs.
 - `block`: size of the leading block under `ident=:block_cholesky`.
 - `shock_weights`: δ* in structural shock space, passed through to P * E_n * δ*.
 - `impact_weights`: target impact response of the leading block; converted to δ*
+  against the bias-corrected model for the point estimate and against each
+  replicate's own covariance in the bootstrap, so that dot(w, impact) = 1 in
+  every draw.
   against the bias-corrected model so that dot(w, impact) = 1.
 """
 function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
@@ -81,9 +84,6 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
         bc_model.Sigma = (resid * resid') / size(resid, 2)
     end
 
-    # Step 1d: resolve the shock vector. Normalising against bc_model fixes δ*
-    # once, so every replicate receives the same shock rather than being
-    # rescaled to its own covariance estimate
     if impact_weights !== nothing
         if shock_weights !== nothing
             throw(ArgumentError("pass impact_weights or shock_weights, not both"))
@@ -117,9 +117,14 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
             boot_model.residuals = resid
             boot_model.Sigma = (resid * resid') / size(resid, 2)
         end
+        # recompute d from this replicate's covariance, so that every draw
+        # describes the same one-unit impact on the leading block
+        sw = impact_weights === nothing ? shock_weights :
+             impact_weights_to_shock(boot_model, impact_weights;
+                                     block=block, mode=impact_mode)
         irf_star = reduced_form_irf(boot_model; hmax=hmax,
-                                    shock_idx=shock_idx, ident=ident,
-                                    block=block, shock_weights=shock_weights)
+                                    shock_idx=shock_idx, ident=ident, block=block,
+                                    shock_weights=sw)
         irf_store[:, :, m] = irf_star
     end
     # Step 3: percentile intervals

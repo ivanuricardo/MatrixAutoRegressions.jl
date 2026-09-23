@@ -292,7 +292,7 @@ end
     p_max = 5
     var_model = VAR(dgp.Y; p=p_max)
 
-    model_best, ic_table = fit_and_select!(var_model; ic_type=:bic)
+    model_best, ic_table = fit_and_select!(var_model; ic_type=:hqc)
 
     # expected: ic(p) = p^2 for p in 0:p_max
     ps = collect(0:p_max)

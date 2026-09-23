@@ -180,8 +180,8 @@ function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], thet
             throw(ArgumentError("shock_idx must lie in the leading block of size $block"))
         e[vec_shock_idx] = one(T)
     else
-        ident === :block_cholesky ||
-            throw(ArgumentError("shock_weights requires ident=:block_cholesky"))
+        ident in (:reduced, :block_cholesky) ||
+            throw(ArgumentError("shock_weights requires ident=:reduced or :block_cholesky"))
         length(shock_weights) == block ||
             throw(ArgumentError("shock_weights must have length block = $block"))
         e[1:block] .= shock_weights

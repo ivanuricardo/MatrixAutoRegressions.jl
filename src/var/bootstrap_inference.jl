@@ -1,5 +1,22 @@
 
 """
+    residuals_at(data, C, p)
+
+Residuals at coefficients `C`, with the intercept concentrated out exactly as in
+`estimate_var` (Y and each lag block demeaned separately). At `C = model.C` this
+reproduces the OLS residuals.
+"""
+function residuals_at(data::AbstractMatrix, C::Vector{<:AbstractMatrix}, p::Int)
+    Y = data[:, (p+1):end]
+    resid = Y .- mean(Y, dims=2)
+    for j in 1:p
+        X_j = data[:, (p+1-j):(end-j)]
+        resid .-= C[j] * (X_j .- mean(X_j, dims=2))
+    end
+    return resid
+end
+
+"""
     enforce_stationarity(C_hat, bias_mats; p=1, dims=nothing)
 
 Kilian Step 1b/2b: if the bias-corrected companion matrix has a root
@@ -75,11 +92,7 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
     bc_model = deepcopy(model)
     bc_model.C = C_bc
     if ident === :cholesky || ident === :block_cholesky
-        data = bc_model.data
-        resid = copy(data[:, (p+1):end])
-        for j in 1:p
-            resid .-= C_bc[j] * data[:, (p+1-j):(end-j)]
-        end
+        resid = residuals_at(bc_model.data, C_bc, p)
         bc_model.residuals = resid
         bc_model.Sigma = (resid * resid') / size(resid, 2)
     end
@@ -109,11 +122,7 @@ function irf_bootstrap(model::VAR, bias_method::BiasCorrection;
         C_star_bc, delta_store[m] = enforce_stationarity(boot_model.C, b_star; p)
         boot_model.C = C_star_bc
         if ident === :cholesky || ident === :block_cholesky
-            data = boot_model.data
-            resid = copy(data[:, (p+1):end])
-            for j in 1:p
-                resid .-= C_star_bc[j] * data[:, (p+1-j):(end-j)]
-            end
+            resid = residuals_at(boot_model.data, C_star_bc, p)
             boot_model.residuals = resid
             boot_model.Sigma = (resid * resid') / size(resid, 2)
         end

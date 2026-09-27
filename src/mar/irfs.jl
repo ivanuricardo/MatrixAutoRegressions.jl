@@ -204,9 +204,114 @@ function reduced_form_irf(model::MAR; hmax::Int=1, shock_idx::Vector=[1,1], thet
     return irf
 end
 
+"""
+    mar_sigma_covariance(model::MAR)
+
+Covariance of σ̂ = (vech Σ̂₁, vech Σ̂₂) on the finite-sample scale, as the
+constrained sandwich H⁻¹ΛH⁻¹ of the covariance block of the likelihood.
+H = H₀ + γγ' with H₀ the expected negative Hessian and γ the gradient of the
+normalization of Σ₁, and Λ is the outer product of the per-period scores at the
+residuals, so the fourth moments are estimated rather than assumed Gaussian.
+Any function of Σ₂ ⊗ Σ₁, such as the impact vector of a block shock, is
+invariant to the normalization, so its choice does not affect the variance of
+the impulse responses.
+"""
+function mar_sigma_covariance(model::MAR)
+    require_fitted(model)
+    n1, n2 = model.dims
+    U = model.residuals
+    T = size(U, 3)
+    Σ1, Σ2 = Matrix(model.Sigma1), Matrix(model.Sigma2)
+    iΣ1, iΣ2 = inv(Σ1), inv(Σ2)
+    E1, E2 = sym_basis(n1), sym_basis(n2)
+    m1, m2 = length(E1), length(E2)
+    m = m1 + m2
+
+    # per-period scores; for symmetric X, D'vec(X) = [⟨E_k, X⟩]_k
+    S = zeros(m, T)
+    for t in 1:T
+        Ut = U[:, :, t]
+        X1 = iΣ1 * (Ut * iΣ2 * Ut' - n2 * Σ1) * iΣ1
+        X2 = iΣ2 * (Ut' * iΣ1 * Ut - n1 * Σ2) * iΣ2
+        for k in 1:m1
+            S[k, t] = dot(E1[k], X1) / 2
+        end
+        for k in 1:m2
+            S[m1+k, t] = dot(E2[k], X2) / 2
+        end
+    end
+    S = S .- mean(S, dims=2)
+    Λ = (S * S') ./ T
+
+    # expected negative Hessian of the covariance block, plus the normalization
+    H = zeros(m, m)
+    for k in 1:m1, l in 1:m1
+        H[k, l] = n2 * tr(iΣ1 * E1[k] * iΣ1 * E1[l]) / 2
+    end
+    for k in 1:m2, l in 1:m2
+        H[m1+k, m1+l] = n1 * tr(iΣ2 * E2[k] * iΣ2 * E2[l]) / 2
+    end
+    for k in 1:m1, l in 1:m2
+        H[k, m1+l] = tr(iΣ1 * E1[k]) * tr(iΣ2 * E2[l]) / 2
+        H[m1+l, k] = H[k, m1+l]
+    end
+    γ = zeros(m)
+    for k in 1:m1
+        γ[k] = tr(Σ1 * E1[k])
+    end
+    H .+= γ * γ'
+
+    Hinv = inv(Symmetric(H))
+    return Hinv * Λ * Hinv ./ T
+end
+
+function impact_irf(model::MAR, impact_weights::AbstractVector;
+                    hmax::Integer=1, block::Int=1, mode::Symbol=:uniform)
+    require_fitted(model)
+    n1, n2 = model.dims
+    obs = model.obs
+
+    d = impact_weights_to_shock(model, impact_weights; block=block, mode=mode)
+    theta = irf_ma(model; hmax=hmax)                   # reduced form
+    irfs = reduced_form_irf(model; hmax=hmax, theta=theta, ident=:block_cholesky,
+                            block=block, shock_weights=d)
+
+    P = get_block_cholesky_innovation_matrix(model; block=block)
+    v = P[:, 1:block] * d
+    Σ1, Σ2 = Matrix(model.Sigma1), Matrix(model.Sigma2)
+    K, a = impact_derivative_terms(kron(Σ2, Σ1), v[1:block], block)
+    check_impact_vector(v, K, block)
+    # Σ = Σ₂ ⊗ Σ₁, so dΣ = Σ₂ ⊗ dΣ₁ + dΣ₂ ⊗ Σ₁
+    cols = vcat([impact_direction(kron(Σ2, E), K, a, block) for E in sym_basis(n1)],
+                [impact_direction(kron(E, Σ1), K, a, block) for E in sym_basis(n2)])
+    Jv = reduce(hcat, cols)
+
+    # coefficient block, as in all_irf_variances, on the finite-sample scale
+    cov_full, _ = asymptotic_variance(model)
+    kronQ = kron(Q_matrix(n1, n2, model.p), I(n1 * n2))
+    cov_C = (kronQ * cov_full * kronQ') ./ obs
+    cov_sigma = mar_sigma_covariance(model)
+
+    irf_cov = impact_irf_variance(theta, model.C, v, cov_C, Jv, cov_sigma; hmax=hmax)
+    return (; irfs, irf_var=irf_cov .* obs, irf_cov, irf_se=sqrt.(irf_cov))
+end
+
 function irf(model::MAR; hmax::Integer=1, shock_idx::Vector=[1,1],
              ident::Symbol=:reduced, block::Int=1,
-             shock_weights::Union{Nothing,AbstractVector}=nothing)
+             shock_weights::Union{Nothing,AbstractVector}=nothing,
+             impact_weights::Union{Nothing,AbstractVector}=nothing,
+             impact_mode::Symbol=:uniform)
+    # impact-normalized block shock: point estimate and delta-method variance
+    if impact_weights !== nothing
+        if shock_weights !== nothing
+            throw(ArgumentError("pass impact_weights or shock_weights, not both"))
+        end
+        if ident !== :block_cholesky
+            throw(ArgumentError("impact_weights requires ident=:block_cholesky"))
+        end
+        return impact_irf(model, impact_weights; hmax=hmax, block=block, mode=impact_mode)
+    end
+
     obs = model.obs
     theta = irf_ma(model; hmax)
     irfs = reduced_form_irf(model; hmax=hmax, shock_idx=shock_idx, theta=theta,
@@ -222,4 +327,3 @@ function irf(model::MAR; hmax::Integer=1, shock_idx::Vector=[1,1],
 
     return (; irfs, irf_var, irf_cov, irf_se)
 end
-
